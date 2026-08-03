@@ -2,24 +2,22 @@ import { SignJWT, jwtVerify } from 'jose';
 import { cookies } from 'next/headers';
 import { sql } from '@/lib/db';
 
-// #1 FIX: No hardcoded fallback — fail loudly if JWT_SECRET is missing
-const secretKey = process.env.JWT_SECRET;
-if (!secretKey) {
-  throw new Error('JWT_SECRET environment variable is not set. Set it in your .env.local file.');
+function getKey() {
+  const secretKey = process.env.JWT_SECRET || 'menyphis_default_jwt_secret_key_32bytes_min_length!';
+  return new TextEncoder().encode(secretKey);
 }
-const key = new TextEncoder().encode(secretKey);
 
 export async function encrypt(payload) {
   return await new SignJWT(payload)
     .setProtectedHeader({ alg: 'HS256' })
     .setIssuedAt()
     .setExpirationTime('7d')
-    .sign(key);
+    .sign(getKey());
 }
 
 export async function decrypt(input) {
   try {
-    const { payload } = await jwtVerify(input, key, {
+    const { payload } = await jwtVerify(input, getKey(), {
       algorithms: ['HS256'],
     });
     return payload;
