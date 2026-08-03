@@ -1,8 +1,9 @@
 'use client';
+import { Suspense } from 'react';
 import Link from 'next/link';
 import { useSearchParams } from 'next/navigation';
 
-export default function CheckoutSuccessPage() {
+function SuccessContent() {
   const searchParams = useSearchParams();
   const orderId = searchParams.get('order_id');
 
@@ -30,5 +31,13 @@ export default function CheckoutSuccessPage() {
         </Link>
       </div>
     </div>
+  );
+}
+
+export default function CheckoutSuccessPage() {
+  return (
+    <Suspense fallback={<div style={{ maxWidth: '600px', margin: '80px auto', textAlign: 'center' }}>Loading...</div>}>
+      <SuccessContent />
+    </Suspense>
   );
 }
