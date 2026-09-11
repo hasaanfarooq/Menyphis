@@ -1,9 +1,11 @@
 'use client';
 import { useState, useEffect } from 'react';
+import SuperAdminGuard from '@/components/SuperAdminGuard';
 
 export default function AdminUsersPage() {
   const [users, setUsers] = useState([]);
   const [loading, setLoading] = useState(true);
+  const [adminInfo, setAdminInfo] = useState(null);
   const [searchTerm, setSearchTerm] = useState('');
   
   const [showModal, setShowModal] = useState(false);
@@ -15,7 +17,14 @@ export default function AdminUsersPage() {
   const fetchUsers = async () => {
     setLoading(true);
     try {
-      const res = await fetch('/api/admin/users');
+      const [meRes, res] = await Promise.all([
+        fetch('/api/admin/me'),
+        fetch('/api/admin/users'),
+      ]);
+
+      if (meRes.ok) {
+        setAdminInfo(await meRes.json());
+      }
       if (res.ok) {
         setUsers(await res.json());
       }
@@ -89,6 +98,15 @@ export default function AdminUsersPage() {
     u.name.toLowerCase().includes(searchTerm.toLowerCase()) || 
     u.email.toLowerCase().includes(searchTerm.toLowerCase())
   );
+
+  if (adminInfo && !adminInfo.isSuperAdmin) {
+    return (
+      <SuperAdminGuard
+        feature="User & Role Management"
+        description="Viewing platform user accounts, assigning administrator roles, and granting store permissions are strictly limited to platform super administrators."
+      />
+    );
+  }
 
   return (
     <div>

@@ -1,6 +1,7 @@
 'use client';
 import { useCart } from '@/context/CartContext';
 import { useCurrency } from '@/context/CurrencyContext';
+import { XIcon, ShoppingBagIcon } from '@/components/Icons';
 
 export default function CartDrawer() {
   const { items, isOpen, setCartOpen, removeItem, updateQuantity, totalPrice } = useCart();
@@ -12,13 +13,17 @@ export default function CartDrawer() {
       <div className={`cart-drawer ${isOpen ? 'open' : ''}`}>
         <div className="cart-drawer-header">
           <h2 className="cart-drawer-title">Shopping Cart ({items.length})</h2>
-          <button className="cart-close-btn" onClick={() => setCartOpen(false)}>✕</button>
+          <button className="cart-close-btn" onClick={() => setCartOpen(false)} aria-label="Close cart" style={{ display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+            <XIcon size={18} />
+          </button>
         </div>
 
         <div className="cart-drawer-items">
           {items.length === 0 ? (
             <div className="cart-empty">
-              <div className="cart-empty-icon">🛒</div>
+              <div className="cart-empty-icon" style={{ display: 'flex', justifyContent: 'center', marginBottom: '12px' }}>
+                <ShoppingBagIcon size={48} color="var(--border-color)" />
+              </div>
               <p style={{ fontWeight: 500 }}>Your cart is empty</p>
               <p style={{ fontSize: '12px', marginTop: '6px', color: 'var(--text-muted)' }}>
                 Add some items to get started

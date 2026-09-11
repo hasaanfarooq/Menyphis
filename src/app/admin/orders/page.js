@@ -1,9 +1,16 @@
 'use client';
-import { useState, useEffect } from 'react';
+import { useState, useEffect, Suspense } from 'react';
+import { useSearchParams, useRouter } from 'next/navigation';
+import { XIcon } from '@/components/Icons';
 
-export default function AdminOrdersPage() {
+function OrdersContent() {
+  const searchParams = useSearchParams();
+  const router = useRouter();
+  const storeIdParam = searchParams.get('store_id');
+
   const [orders, setOrders] = useState([]);
   const [loading, setLoading] = useState(true);
+  const [adminInfo, setAdminInfo] = useState(null);
   
   const [showModal, setShowModal] = useState(false);
   const [selectedOrder, setSelectedOrder] = useState(null);
@@ -14,9 +21,16 @@ export default function AdminOrdersPage() {
   const fetchOrders = async () => {
     setLoading(true);
     try {
-      const res = await fetch('/api/admin/orders');
-      if (res.ok) {
-        setOrders(await res.json());
+      const [meRes, oRes] = await Promise.all([
+        fetch('/api/admin/me'),
+        fetch(storeIdParam ? `/api/admin/orders?store_id=${storeIdParam}` : '/api/admin/orders'),
+      ]);
+
+      if (meRes.ok) {
+        setAdminInfo(await meRes.json());
+      }
+      if (oRes.ok) {
+        setOrders(await oRes.json());
       }
     } catch (error) {
       console.error('Failed to fetch orders', error);
@@ -26,7 +40,7 @@ export default function AdminOrdersPage() {
 
   useEffect(() => {
     fetchOrders();
-  }, []);
+  }, [storeIdParam]);
 
   const handleOpenModal = async (orderId) => {
     setShowModal(true);
@@ -96,8 +110,31 @@ export default function AdminOrdersPage() {
   return (
     <div>
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '24px' }}>
-        <h1 className="admin-page-title" style={{ marginBottom: 0 }}>Orders</h1>
+        <div>
+          <h1 className="admin-page-title" style={{ marginBottom: '4px' }}>
+            {adminInfo?.isStoreAdmin ? 'Store Orders' : 'Platform Orders'}
+          </h1>
+          <p className="admin-page-desc" style={{ margin: 0 }}>
+            {adminInfo?.isStoreAdmin
+              ? `Manage and fulfill customer orders containing products from ${adminInfo?.storeName || 'your store'}.`
+              : 'Monitor customer orders across all stores, verify statuses, and update tracking numbers.'}
+          </p>
+        </div>
       </div>
+
+      {!adminInfo?.isStoreAdmin && storeIdParam && (
+        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '10px 16px', background: '#eff6ff', border: '1px solid #bfdbfe', borderRadius: '6px', marginBottom: '16px' }}>
+          <span style={{ fontSize: '13px', color: '#1e40af', fontWeight: 600 }}>
+            Filtered to Store ID: #{storeIdParam}
+          </span>
+          <button 
+            onClick={() => router.push('/admin/orders')}
+            style={{ padding: '4px 12px', background: '#ffffff', border: '1px solid #cbd5e1', borderRadius: '4px', cursor: 'pointer', fontSize: '12px', fontWeight: 600 }}
+          >
+            Clear Store Filter (Show All)
+          </button>
+        </div>
+      )}
 
       <div className="admin-card">
         {loading ? (
@@ -158,13 +195,20 @@ export default function AdminOrdersPage() {
           <div className="admin-modal" style={{ maxWidth: '700px' }}>
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '20px' }}>
               <h2 style={{ margin: 0 }}>Order Details #{selectedOrder?.id}</h2>
-              <button onClick={handleCloseModal} style={{ background: 'none', border: 'none', fontSize: '20px', cursor: 'pointer' }}>✕</button>
+              <button onClick={handleCloseModal} style={{ background: 'none', border: 'none', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '4px' }}>
+                <XIcon size={18} color="#64748b" />
+              </button>
             </div>
             
             {orderLoading ? (
               <div style={{ padding: '40px', textAlign: 'center' }}>Loading details...</div>
             ) : selectedOrder ? (
               <div>
+                {adminInfo?.isStoreAdmin && (
+                  <div style={{ background: '#eff6ff', border: '1px solid #bfdbfe', borderRadius: '6px', padding: '10px 14px', marginBottom: '16px', fontSize: '13px', color: '#1e40af' }}>
+                    Displaying items, tracking, and totals specific to <strong>{adminInfo?.storeName}</strong>.
+                  </div>
+                )}
                 <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '20px', marginBottom: '24px' }}>
                   <div style={{ background: '#f8fafc', padding: '16px', borderRadius: '8px' }}>
                     <h3 style={{ fontSize: '14px', color: '#64748b', marginBottom: '8px', textTransform: 'uppercase', letterSpacing: '0.05em' }}>Customer Info</h3>
@@ -279,5 +323,13 @@ export default function AdminOrdersPage() {
         </div>
       )}
     </div>
+  );
+}
+
+export default function AdminOrdersPage() {
+  return (
+    <Suspense fallback={<div style={{ padding: '24px' }}>Loading orders...</div>}>
+      <OrdersContent />
+    </Suspense>
   );
 }

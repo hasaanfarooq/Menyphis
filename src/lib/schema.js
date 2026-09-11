@@ -1,4 +1,4 @@
-import { sql } from '../lib/db';
+import { sql } from './db.js';
 import bcrypt from 'bcryptjs';
 
 export async function initializeDatabase() {
@@ -10,19 +10,108 @@ export async function initializeDatabase() {
       password_hash VARCHAR(255) NOT NULL,
       avatar_url TEXT,
       is_admin BOOLEAN DEFAULT false,
+      role VARCHAR(50) DEFAULT 'customer',
+      store_id INT,
+      created_at TIMESTAMP DEFAULT NOW()
+    )
+  `;
+
+  await sql`
+    CREATE TABLE IF NOT EXISTS stores (
+      id SERIAL PRIMARY KEY,
+      name VARCHAR(255) NOT NULL,
+      slug VARCHAR(255) UNIQUE NOT NULL,
+      tagline VARCHAR(255),
+      description TEXT,
+      logo_url TEXT,
+      banner_url TEXT,
+      owner_id INT REFERENCES users(id) ON DELETE SET NULL,
+      is_featured BOOLEAN DEFAULT false,
+      is_active BOOLEAN DEFAULT true,
+      rating DECIMAL(3,2) DEFAULT 5.0,
       created_at TIMESTAMP DEFAULT NOW()
     )
   `;
 
   await sql`ALTER TABLE users ADD COLUMN IF NOT EXISTS is_admin BOOLEAN DEFAULT false`;
+  await sql`ALTER TABLE users ADD COLUMN IF NOT EXISTS role VARCHAR(50) DEFAULT 'customer'`;
+  await sql`ALTER TABLE users ADD COLUMN IF NOT EXISTS store_id INT REFERENCES stores(id) ON DELETE SET NULL`;
+  await sql`ALTER TABLE products ADD COLUMN IF NOT EXISTS store_id INT REFERENCES stores(id) ON DELETE CASCADE`;
+  await sql`ALTER TABLE products ADD COLUMN IF NOT EXISTS color_images JSONB DEFAULT '{}'::jsonb`;
+  await sql`ALTER TABLE products ADD COLUMN IF NOT EXISTS features TEXT[] DEFAULT '{}'::text[]`;
+  await sql`ALTER TABLE products ADD COLUMN IF NOT EXISTS total_sold INT DEFAULT 0`;
+  await sql`ALTER TABLE products ADD COLUMN IF NOT EXISTS featured_order INT DEFAULT 0`;
+  await sql`ALTER TABLE order_items ADD COLUMN IF NOT EXISTS store_id INT REFERENCES stores(id) ON DELETE SET NULL`;
+
+  await sql`ALTER TABLE stores ADD COLUMN IF NOT EXISTS commission_rate DECIMAL(5,2) DEFAULT 10.0`;
+  await sql`ALTER TABLE stores ADD COLUMN IF NOT EXISTS pending_payout DECIMAL(10,2) DEFAULT 0.0`;
+  await sql`ALTER TABLE stores ADD COLUMN IF NOT EXISTS total_paid_out DECIMAL(10,2) DEFAULT 0.0`;
+  await sql`ALTER TABLE stores ADD COLUMN IF NOT EXISTS bank_account_title VARCHAR(255)`;
+  await sql`ALTER TABLE stores ADD COLUMN IF NOT EXISTS bank_name VARCHAR(255)`;
+  await sql`ALTER TABLE stores ADD COLUMN IF NOT EXISTS bank_account_number VARCHAR(255)`;
+  await sql`ALTER TABLE stores ADD COLUMN IF NOT EXISTS bank_iban VARCHAR(255)`;
+
+  await sql`
+    CREATE TABLE IF NOT EXISTS coupons (
+      id SERIAL PRIMARY KEY,
+      code VARCHAR(50) UNIQUE NOT NULL,
+      description TEXT,
+      type VARCHAR(50) NOT NULL DEFAULT 'percentage',
+      value DECIMAL(10,2) NOT NULL DEFAULT 0,
+      min_order_amount DECIMAL(10,2) DEFAULT 0,
+      max_discount_amount DECIMAL(10,2),
+      usage_limit INT,
+      used_count INT DEFAULT 0,
+      per_user_limit INT DEFAULT 1,
+      starts_at TIMESTAMP DEFAULT NOW(),
+      expires_at TIMESTAMP,
+      is_active BOOLEAN DEFAULT true,
+      first_order_only BOOLEAN DEFAULT false,
+      store_id INT REFERENCES stores(id) ON DELETE CASCADE,
+      created_at TIMESTAMP DEFAULT NOW()
+    )
+  `;
+
+  await sql`
+    CREATE TABLE IF NOT EXISTS coupon_uses (
+      id SERIAL PRIMARY KEY,
+      coupon_id INT REFERENCES coupons(id) ON DELETE CASCADE,
+      user_id INT REFERENCES users(id) ON DELETE SET NULL,
+      order_id INT REFERENCES orders(id) ON DELETE CASCADE,
+      created_at TIMESTAMP DEFAULT NOW()
+    )
+  `;
+
+  await sql`ALTER TABLE coupons ADD COLUMN IF NOT EXISTS store_id INT REFERENCES stores(id) ON DELETE CASCADE`;
+  await sql`ALTER TABLE flash_sales ADD COLUMN IF NOT EXISTS store_id INT REFERENCES stores(id) ON DELETE CASCADE`;
+  await sql`ALTER TABLE categories ADD COLUMN IF NOT EXISTS store_id INT REFERENCES stores(id) ON DELETE CASCADE`;
+  await sql`ALTER TABLE categories DROP CONSTRAINT IF EXISTS categories_slug_key`;
+  await sql`CREATE UNIQUE INDEX IF NOT EXISTS categories_global_slug_idx ON categories (slug) WHERE store_id IS NULL`;
+  await sql`CREATE UNIQUE INDEX IF NOT EXISTS categories_store_slug_idx ON categories (store_id, slug) WHERE store_id IS NOT NULL`;
+
+  await sql`
+    CREATE TABLE IF NOT EXISTS payouts (
+      id SERIAL PRIMARY KEY,
+      store_id INT REFERENCES stores(id) ON DELETE CASCADE,
+      amount DECIMAL(10,2) NOT NULL,
+      commission_deducted DECIMAL(10,2) DEFAULT 0,
+      gross_sales DECIMAL(10,2) NOT NULL,
+      status VARCHAR(50) DEFAULT 'pending',
+      notes TEXT,
+      transaction_reference VARCHAR(255),
+      created_at TIMESTAMP DEFAULT NOW(),
+      processed_at TIMESTAMP
+    )
+  `;
 
   await sql`
     CREATE TABLE IF NOT EXISTS categories (
       id SERIAL PRIMARY KEY,
       name VARCHAR(100) NOT NULL,
-      slug VARCHAR(100) UNIQUE NOT NULL,
+      slug VARCHAR(100) NOT NULL,
       description TEXT,
-      image_url TEXT
+      image_url TEXT,
+      store_id INT REFERENCES stores(id) ON DELETE CASCADE
     )
   `;
 
@@ -39,6 +128,8 @@ export async function initializeDatabase() {
       images TEXT[],
       colors TEXT[],
       sizes TEXT[],
+      color_images JSONB DEFAULT '{}'::jsonb,
+      features TEXT[] DEFAULT '{}'::text[],
       stock INT DEFAULT 0,
       featured BOOLEAN DEFAULT false,
       trending BOOLEAN DEFAULT false,

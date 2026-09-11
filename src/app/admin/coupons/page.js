@@ -1,10 +1,12 @@
 'use client';
 import { useState, useEffect, useCallback } from 'react';
+import { TruckIcon, TagIcon, EditIcon, XIcon } from '@/components/Icons';
+import SuperAdminGuard from '@/components/SuperAdminGuard';
 
 const typeConfig = {
   percentage: { label: 'Percentage Off', icon: '%', color: '#8b5cf6', bg: '#f5f3ff' },
   fixed: { label: 'Fixed Amount Off', icon: '$', color: '#3b82f6', bg: '#eff6ff' },
-  free_shipping: { label: 'Free Shipping', icon: '🚚', color: '#22c55e', bg: '#f0fdf4' },
+  free_shipping: { label: 'Free Shipping', icon: <TruckIcon size={16} />, color: '#22c55e', bg: '#f0fdf4' },
 };
 
 const toLocalDT = (iso) => {
@@ -27,12 +29,14 @@ const defaultForm = () => ({
   code: '', description: '', type: 'percentage', value: '', 
   min_order_amount: '', max_discount_amount: '', usage_limit: '',
   per_user_limit: '1', starts_at: toLocalDT(new Date().toISOString()),
-  expires_at: '', is_active: true, first_order_only: false,
+  expires_at: '', is_active: true, first_order_only: false, store_id: '',
 });
 
 export default function AdminCouponsPage() {
   const [coupons, setCoupons] = useState([]);
+  const [stores, setStores] = useState([]);
   const [loading, setLoading] = useState(true);
+  const [adminInfo, setAdminInfo] = useState(null);
   const [showModal, setShowModal] = useState(false);
   const [editingId, setEditingId] = useState(null);
   const [submitting, setSubmitting] = useState(false);
@@ -42,13 +46,22 @@ export default function AdminCouponsPage() {
   const fetchCoupons = useCallback(async () => {
     setLoading(true);
     try {
-      const res = await fetch('/api/admin/coupons');
-      if (res.ok) setCoupons(await res.json());
+      const [meRes, cRes, sRes] = await Promise.all([
+        fetch('/api/admin/me'),
+        fetch('/api/admin/coupons'),
+        fetch('/api/admin/stores'),
+      ]);
+      if (meRes.ok) setAdminInfo(await meRes.json());
+      if (cRes.ok) setCoupons(await cRes.json());
+      if (sRes.ok) setStores(await sRes.json());
     } catch {}
     setLoading(false);
   }, []);
 
   useEffect(() => { fetchCoupons(); }, [fetchCoupons]);
+
+  const isStoreAdmin = !!adminInfo?.isStoreAdmin;
+  const isSuperAdmin = !isStoreAdmin;
 
   const handleOpenModal = (coupon = null) => {
     if (coupon) {
@@ -60,77 +73,80 @@ export default function AdminCouponsPage() {
         value: coupon.value,
         min_order_amount: coupon.min_order_amount || '',
         max_discount_amount: coupon.max_discount_amount || '',
-        usage_limit: coupon.usage_limit || '',
+        usage_limit: coupon.usage_limit ?? '',
         per_user_limit: coupon.per_user_limit || '1',
         starts_at: toLocalDT(coupon.starts_at),
         expires_at: toLocalDT(coupon.expires_at),
         is_active: coupon.is_active,
-        first_order_only: coupon.first_order_only,
+        first_order_only: coupon.first_order_only || false,
+        store_id: coupon.store_id ? coupon.store_id.toString() : '',
       });
     } else {
       setEditingId(null);
-      setFormData(defaultForm());
+      setFormData({
+        ...defaultForm(),
+        store_id: isStoreAdmin && adminInfo?.storeId ? adminInfo.storeId.toString() : '',
+      });
     }
     setShowModal(true);
   };
 
+  const handleToggle = async (coupon) => {
+    try {
+      const res = await fetch(`/api/admin/coupons/${coupon.id}`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ ...coupon, is_active: !coupon.is_active }),
+      });
+      if (res.ok) fetchCoupons();
+    } catch {}
+  };
+
+  const handleDelete = async (id) => {
+    if (!confirm('Are you sure you want to delete this coupon?')) return;
+    try {
+      const res = await fetch(`/api/admin/coupons/${id}`, { method: 'DELETE' });
+      if (res.ok) fetchCoupons();
+    } catch {}
+  };
+
   const handleSubmit = async (e) => {
     e.preventDefault();
-    if (submitting) return;
     setSubmitting(true);
-
-    const method = editingId ? 'PUT' : 'POST';
-    const url = editingId ? `/api/admin/coupons/${editingId}` : '/api/admin/coupons';
-
-    const payload = {
-      ...formData,
-      value: parseFloat(formData.value) || 0,
-      min_order_amount: parseFloat(formData.min_order_amount) || 0,
-      max_discount_amount: formData.max_discount_amount ? parseFloat(formData.max_discount_amount) : null,
-      usage_limit: formData.usage_limit ? parseInt(formData.usage_limit) : null,
-      per_user_limit: parseInt(formData.per_user_limit) || 1,
-      starts_at: formData.starts_at ? new Date(formData.starts_at).toISOString() : new Date().toISOString(),
-      expires_at: formData.expires_at ? new Date(formData.expires_at).toISOString() : null,
-    };
-
     try {
+      const url = editingId ? `/api/admin/coupons/${editingId}` : '/api/admin/coupons';
+      const method = editingId ? 'PUT' : 'POST';
+
+      const payload = {
+        ...formData,
+        store_id: isStoreAdmin ? adminInfo.storeId : (formData.store_id ? parseInt(formData.store_id) : null),
+      };
+
       const res = await fetch(url, {
-        method, headers: { 'Content-Type': 'application/json' },
+        method,
+        headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(payload),
       });
       if (res.ok) {
         setShowModal(false);
         fetchCoupons();
       } else {
-        const data = await res.json();
-        alert(data.error || 'Failed to save coupon');
+        const d = await res.json();
+        alert(d.error || 'Failed to save coupon');
       }
     } catch {
-      alert('Network error');
+      alert('Network error, please try again.');
     } finally {
       setSubmitting(false);
     }
-  };
-
-  const handleDelete = async (id) => {
-    if (!confirm('Delete this coupon permanently?')) return;
-    await fetch(`/api/admin/coupons/${id}`, { method: 'DELETE' });
-    fetchCoupons();
-  };
-
-  const handleToggle = async (coupon) => {
-    await fetch(`/api/admin/coupons/${coupon.id}`, {
-      method: 'PUT', headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ ...coupon, is_active: !coupon.is_active }),
-    });
-    fetchCoupons();
   };
 
   const set = (k, v) => setFormData(p => ({ ...p, [k]: v }));
 
   const filtered = coupons.filter(c =>
     c.code.toLowerCase().includes(search.toLowerCase()) ||
-    (c.description || '').toLowerCase().includes(search.toLowerCase())
+    (c.description || '').toLowerCase().includes(search.toLowerCase()) ||
+    (c.store_name || '').toLowerCase().includes(search.toLowerCase())
   );
 
   return (
@@ -138,8 +154,14 @@ export default function AdminCouponsPage() {
       {/* Header */}
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '24px', gap: '16px', flexWrap: 'wrap' }}>
         <div>
-          <h1 className="admin-page-title" style={{ marginBottom: '4px' }}>Coupons</h1>
-          <p style={{ color: '#64748b', fontSize: '14px' }}>Create discount codes with percentage, fixed, or free shipping rules.</p>
+          <h1 className="admin-page-title" style={{ marginBottom: '4px' }}>
+            {isStoreAdmin ? 'Store Coupons & Discounts' : 'Coupons & Promotions'}
+          </h1>
+          <p style={{ color: '#64748b', fontSize: '14px', margin: 0 }}>
+            {isStoreAdmin
+              ? `Create promotional discount codes for ${adminInfo?.storeName || 'your store'}.`
+              : 'Create sitewide platform discount codes or manage store-specific promotions.'}
+          </p>
         </div>
         <div style={{ display: 'flex', gap: '10px', alignItems: 'center' }}>
           <input type="text" placeholder="Search coupons..." value={search} onChange={e => setSearch(e.target.value)}
@@ -154,7 +176,7 @@ export default function AdminCouponsPage() {
       {/* Stats */}
       <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(180px, 1fr))', gap: '16px', marginBottom: '24px' }}>
         {[
-          { label: 'Total Coupons', value: coupons.length, color: '#3b82f6' },
+          { label: isStoreAdmin ? 'Store Coupons' : 'Total Coupons', value: coupons.length, color: '#3b82f6' },
           { label: 'Active', value: coupons.filter(c => statusBadge(c).label === 'Active').length, color: '#22c55e' },
           { label: 'Total Redemptions', value: coupons.reduce((s, c) => s + (c.used_count || 0), 0), color: '#8b5cf6' },
         ].map(s => (
@@ -171,9 +193,15 @@ export default function AdminCouponsPage() {
           <div style={{ padding: '48px', textAlign: 'center', color: '#64748b' }}>Loading...</div>
         ) : filtered.length === 0 ? (
           <div style={{ padding: '64px', textAlign: 'center' }}>
-            <div style={{ fontSize: '48px', marginBottom: '12px' }}>🎟️</div>
-            <div style={{ fontSize: '18px', fontWeight: '600', marginBottom: '8px' }}>No Coupons Yet</div>
-            <div style={{ color: '#64748b', marginBottom: '24px' }}>Create your first coupon to drive sales.</div>
+            <div style={{ display: 'flex', justifyContent: 'center', marginBottom: '12px', color: '#94a3b8' }}>
+              <TagIcon size={48} />
+            </div>
+            <div style={{ fontSize: '18px', fontWeight: '600', marginBottom: '8px' }}>
+              {isStoreAdmin ? 'No Store Coupons Yet' : 'No Coupons Found'}
+            </div>
+            <div style={{ color: '#64748b', marginBottom: '24px' }}>
+              Create your first coupon code to drive sales.
+            </div>
             <button onClick={() => handleOpenModal()} style={{ padding: '10px 24px', background: '#1e293b', color: 'white', borderRadius: '6px', border: 'none', cursor: 'pointer', fontWeight: '600' }}>
               Create Coupon
             </button>
@@ -184,6 +212,7 @@ export default function AdminCouponsPage() {
               <thead>
                 <tr>
                   <th>Code</th>
+                  {isSuperAdmin && <th>Scope / Store</th>}
                   <th>Type & Value</th>
                   <th>Conditions</th>
                   <th>Usage</th>
@@ -202,8 +231,21 @@ export default function AdminCouponsPage() {
                         <div style={{ fontFamily: 'monospace', fontWeight: '800', fontSize: '16px', letterSpacing: '1px', color: '#1e293b' }}>{coupon.code}</div>
                         {coupon.description && <div style={{ fontSize: '12px', color: '#64748b', marginTop: '2px' }}>{coupon.description}</div>}
                       </td>
+                      {isSuperAdmin && (
+                        <td>
+                          {coupon.store_name ? (
+                            <span style={{ fontSize: '12px', fontWeight: '600', color: '#1e40af', background: '#eff6ff', padding: '3px 8px', borderRadius: '4px' }}>
+                              {coupon.store_name}
+                            </span>
+                          ) : (
+                            <span style={{ fontSize: '12px', fontWeight: '600', color: '#475569', background: '#f1f5f9', padding: '3px 8px', borderRadius: '4px' }}>
+                              Sitewide
+                            </span>
+                          )}
+                        </td>
+                      )}
                       <td>
-                        <span style={{ background: tc.bg, color: tc.color, padding: '4px 10px', borderRadius: '6px', fontSize: '13px', fontWeight: '700' }}>
+                        <span style={{ display: 'inline-flex', alignItems: 'center', gap: '5px', background: tc.bg, color: tc.color, padding: '4px 10px', borderRadius: '6px', fontSize: '13px', fontWeight: '700' }}>
                           {tc.icon} {coupon.type === 'free_shipping' ? 'Free Shipping' : `${coupon.type === 'percentage' ? coupon.value + '%' : '$' + parseFloat(coupon.value).toFixed(2)} off`}
                         </span>
                         {coupon.max_discount_amount && (
@@ -262,11 +304,39 @@ export default function AdminCouponsPage() {
         <div className="admin-modal-overlay">
           <div className="admin-modal" style={{ maxWidth: '680px', width: '95vw', maxHeight: '90vh', overflowY: 'auto' }}>
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '20px' }}>
-              <h2 style={{ margin: 0 }}>{editingId ? '✏️ Edit Coupon' : '🎟️ Create Coupon'}</h2>
-              <button onClick={() => setShowModal(false)} style={{ background: 'none', border: 'none', fontSize: '24px', cursor: 'pointer', color: '#64748b' }}>×</button>
+              <h2 style={{ margin: 0, display: 'flex', alignItems: 'center', gap: '8px' }}>
+                {editingId ? <><EditIcon size={20} /> Edit Coupon</> : <><TagIcon size={20} /> Create Coupon</>}
+              </h2>
+              <button onClick={() => setShowModal(false)} style={{ background: 'none', border: 'none', cursor: 'pointer', color: '#64748b', display: 'flex', alignItems: 'center', padding: '4px' }} aria-label="Close">
+                <XIcon size={20} />
+              </button>
             </div>
 
             <form onSubmit={handleSubmit} className="admin-form">
+              {/* Store Scope */}
+              {isSuperAdmin ? (
+                <div style={{ background: '#f8fafc', borderRadius: '8px', padding: '16px', marginBottom: '16px' }}>
+                  <h3 style={{ margin: '0 0 8px', fontSize: '13px', fontWeight: '700', color: '#475569', textTransform: 'uppercase', letterSpacing: '0.5px' }}>Store Scope</h3>
+                  <select
+                    value={formData.store_id || ''}
+                    onChange={e => set('store_id', e.target.value)}
+                    className="form-input"
+                    style={{ margin: 0, width: '100%' }}
+                  >
+                    <option value="">Marketplace Sitewide (All Stores)</option>
+                    {stores.map(s => (
+                      <option key={s.id} value={s.id.toString()}>{s.name} (Store #{s.id})</option>
+                    ))}
+                  </select>
+                </div>
+              ) : (
+                <div style={{ background: '#eff6ff', borderRadius: '8px', padding: '12px 16px', marginBottom: '16px', border: '1px solid #bfdbfe' }}>
+                  <div style={{ fontSize: '12px', color: '#1e40af', fontWeight: 600 }}>
+                    This coupon will apply exclusively to products sold by <strong>{adminInfo?.storeName}</strong>.
+                  </div>
+                </div>
+              )}
+
               {/* Coupon Code */}
               <div style={{ background: '#f8fafc', borderRadius: '8px', padding: '16px', marginBottom: '16px' }}>
                 <h3 style={{ margin: '0 0 12px', fontSize: '13px', fontWeight: '700', color: '#475569', textTransform: 'uppercase', letterSpacing: '0.5px' }}>Coupon Code</h3>
@@ -293,7 +363,7 @@ export default function AdminCouponsPage() {
                   {Object.entries(typeConfig).map(([key, tc]) => (
                     <button key={key} type="button" onClick={() => set('type', key)}
                       style={{ flex: 1, padding: '10px 8px', borderRadius: '8px', cursor: 'pointer', border: `2px solid ${formData.type === key ? tc.color : '#e2e8f0'}`, background: formData.type === key ? tc.bg : 'white', color: formData.type === key ? tc.color : '#64748b', fontWeight: '600', fontSize: '12px', transition: 'all 0.15s', textAlign: 'center' }}>
-                      <div style={{ fontSize: '18px', marginBottom: '4px' }}>{tc.icon}</div>
+                      <div style={{ height: '24px', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '18px', marginBottom: '4px' }}>{tc.icon}</div>
                       {tc.label}
                     </button>
                   ))}

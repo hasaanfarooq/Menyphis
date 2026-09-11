@@ -2,6 +2,7 @@
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import { useSiteSettings } from '@/context/SiteSettingsContext';
+import { MailIcon, PhoneIcon, MapPinIcon } from '@/components/Icons';
 
 export default function Footer() {
   const pathname = usePathname();
@@ -77,24 +78,25 @@ export default function Footer() {
         <div className="footer-column">
           <h4>Contact Us</h4>
           {get('contact_email') && (
-            <a href={`mailto:${get('contact_email')}`} style={{ wordBreak: 'break-all' }}>
-              ✉ {get('contact_email')}
+            <a href={`mailto:${get('contact_email')}`} style={{ wordBreak: 'break-all', display: 'flex', alignItems: 'center', gap: '8px' }}>
+              <MailIcon size={15} /> {get('contact_email')}
             </a>
           )}
           {get('contact_phone') && (
-            <a href={`tel:${get('contact_phone')}`}>
-              📞 {get('contact_phone')}
+            <a href={`tel:${get('contact_phone')}`} style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+              <PhoneIcon size={15} /> {get('contact_phone')}
             </a>
           )}
           {get('contact_address') && (
-            <span style={{ fontSize: '14px', color: 'var(--text-secondary)', marginTop: '8px', lineHeight: '1.6' }}>
-              📍 {get('contact_address')}
+            <span style={{ fontSize: '14px', color: 'var(--text-secondary)', marginTop: '8px', lineHeight: '1.6', display: 'flex', alignItems: 'flex-start', gap: '8px' }}>
+              <MapPinIcon size={15} style={{ marginTop: '3px' }} /> {get('contact_address')}
             </span>
           )}
         </div>
 
         <div className="footer-column">
           <h4>Company</h4>
+          <Link href="/become-a-seller" style={{ color: 'var(--color-primary, #3b82f6)', fontWeight: 600 }}>Become a Seller</Link>
           <a href="#">About Us</a>
           <a href="#">Our Story</a>
           <a href="#">Careers</a>

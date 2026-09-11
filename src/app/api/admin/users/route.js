@@ -1,11 +1,11 @@
 import { NextResponse } from 'next/server';
 import { sql } from '@/lib/db';
-import { requireAdmin } from '@/lib/auth';
+import { requireSuperAdmin } from '@/lib/auth';
 
 export async function GET(request) {
   try {
-    const isAdmin = await requireAdmin();
-    if (!isAdmin) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+    const isSuperAdmin = await requireSuperAdmin();
+    if (!isSuperAdmin) return NextResponse.json({ error: 'Forbidden: Super Admin only' }, { status: 403 });
 
     const result = await sql.query('SELECT id, name, email, avatar_url, is_admin, created_at FROM users ORDER BY created_at DESC');
     const users = Array.isArray(result) ? result : (result.rows || result);

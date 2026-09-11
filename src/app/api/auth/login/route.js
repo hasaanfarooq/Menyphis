@@ -16,7 +16,13 @@ export async function POST(request) {
       return NextResponse.json({ error: 'Invalid input' }, { status: 400 });
     }
 
-    const result = await sql.query('SELECT * FROM users WHERE email = $1', [email]);
+    const result = await sql.query(`
+      SELECT u.id, u.name, u.email, u.password_hash, u.avatar_url, u.is_admin, u.role, u.store_id,
+             s.name as store_name, s.slug as store_slug, s.logo_url as store_logo
+      FROM users u
+      LEFT JOIN stores s ON u.store_id = s.id
+      WHERE u.email = $1
+    `, [email]);
     const users = Array.isArray(result) ? result : (result.rows || result);
     
     if (users.length === 0) {

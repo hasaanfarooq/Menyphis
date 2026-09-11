@@ -1,10 +1,13 @@
 'use client';
 import { useState, useEffect, useCallback } from 'react';
 import Link from 'next/link';
+import { StarIcon, CheckIcon, ClockIcon } from '@/components/Icons';
 
 const StarRating = ({ rating, size = 14 }) => (
-  <span style={{ color: '#FFB800', fontSize: `${size}px`, letterSpacing: '1px' }}>
-    {'★'.repeat(rating)}{'☆'.repeat(5 - rating)}
+  <span style={{ display: 'inline-flex', alignItems: 'center', gap: '2px' }}>
+    {[1, 2, 3, 4, 5].map(n => (
+      <StarIcon key={n} size={size} filled={n <= rating} />
+    ))}
   </span>
 );
 
@@ -111,9 +114,9 @@ export default function AdminReviewsPage() {
         {/* Status tabs */}
         <div style={{ display: 'flex', background: '#f1f5f9', borderRadius: '8px', padding: '3px', gap: '2px' }}>
           {[
-            { key: 'all', label: 'All' },
-            { key: 'approved', label: '✓ Approved' },
-            { key: 'pending', label: '⏳ Pending' },
+            { key: 'all', label: 'All', icon: null },
+            { key: 'approved', label: 'Approved', icon: (color) => <CheckIcon size={12} color={color} /> },
+            { key: 'pending', label: 'Pending', icon: (color) => <ClockIcon size={12} color={color} /> },
           ].map(tab => (
             <button key={tab.key} onClick={() => { setStatus(tab.key); setPage(1); }}
               style={{
@@ -124,7 +127,9 @@ export default function AdminReviewsPage() {
                 fontSize: '13px',
                 boxShadow: status === tab.key ? '0 1px 4px rgba(0,0,0,0.1)' : 'none',
                 transition: 'all 0.15s',
+                display: 'inline-flex', alignItems: 'center', gap: '5px',
               }}>
+              {tab.icon && tab.icon(status === tab.key ? '#1e293b' : '#64748b')}
               {tab.label}
             </button>
           ))}
@@ -158,7 +163,9 @@ export default function AdminReviewsPage() {
           ))
         ) : reviews.length === 0 ? (
           <div className="admin-card" style={{ padding: '64px', textAlign: 'center' }}>
-            <div style={{ fontSize: '48px', marginBottom: '12px' }}>⭐</div>
+            <div style={{ display: 'flex', justifyContent: 'center', marginBottom: '12px' }}>
+              <StarIcon size={44} filled={false} color="#94a3b8" />
+            </div>
             <div style={{ fontSize: '18px', fontWeight: '600', marginBottom: '8px' }}>No reviews found</div>
             <div style={{ color: '#64748b' }}>Reviews will appear here once customers start leaving them.</div>
           </div>
@@ -196,9 +203,18 @@ export default function AdminReviewsPage() {
                     <span style={{
                       background: review.approved ? '#f0fdf4' : '#fff7ed',
                       color: review.approved ? '#22c55e' : '#f97316',
-                      padding: '2px 8px', borderRadius: '999px', fontSize: '11px', fontWeight: '700'
+                      padding: '3px 8px', borderRadius: '999px', fontSize: '11px', fontWeight: '700',
+                      display: 'inline-flex', alignItems: 'center', gap: '4px',
                     }}>
-                      {review.approved ? '✓ Approved' : '⏳ Pending'}
+                      {review.approved ? (
+                        <>
+                          <CheckIcon size={12} color="#22c55e" /> Approved
+                        </>
+                      ) : (
+                        <>
+                          <ClockIcon size={12} color="#f97316" /> Pending
+                        </>
+                      )}
                     </span>
                   </div>
                   {review.comment && (

@@ -2,6 +2,7 @@
 import { useSiteSettings } from '@/context/SiteSettingsContext';
 import { useAuth } from '@/context/AuthContext';
 import { usePathname } from 'next/navigation';
+import { WrenchIcon } from '@/components/Icons';
 
 export default function MaintenanceOverlay() {
   const { get, loaded: settingsLoaded } = useSiteSettings();
@@ -34,7 +35,9 @@ export default function MaintenanceOverlay() {
         maxWidth: '500px', width: '100%',
         backdropFilter: 'blur(10px)',
       }}>
-        <div style={{ fontSize: '48px', marginBottom: '24px' }}>🛠️</div>
+        <div style={{ display: 'flex', justifyContent: 'center', marginBottom: '24px' }}>
+          <WrenchIcon size={52} color="#94a3b8" />
+        </div>
         <h1 style={{ fontSize: '24px', fontWeight: '800', marginBottom: '12px' }}>
           {siteName} is under maintenance
         </h1>

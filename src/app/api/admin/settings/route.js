@@ -1,12 +1,12 @@
 import { NextResponse } from 'next/server';
 import { sql } from '@/lib/db';
-import { requireAdmin } from '@/lib/auth';
+import { requireSuperAdmin } from '@/lib/auth';
 
-// GET all settings (admin only)
+// GET all settings (super admin only)
 export async function GET() {
   try {
-    const isAdmin = await requireAdmin();
-    if (!isAdmin) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+    const isSuperAdmin = await requireSuperAdmin();
+    if (!isSuperAdmin) return NextResponse.json({ error: 'Forbidden: Super Admin only' }, { status: 403 });
 
     const rows = await sql.query('SELECT key, value FROM site_settings ORDER BY key');
     const settings = {};
@@ -23,8 +23,8 @@ export async function GET() {
 // POST batch-save settings
 export async function POST(request) {
   try {
-    const isAdmin = await requireAdmin();
-    if (!isAdmin) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+    const isSuperAdmin = await requireSuperAdmin();
+    if (!isSuperAdmin) return NextResponse.json({ error: 'Forbidden: Super Admin only' }, { status: 403 });
 
     const body = await request.json();
 

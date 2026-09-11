@@ -1,6 +1,6 @@
 import { NextResponse } from 'next/server';
 import { sql } from '@/lib/db';
-import { requireAdmin } from '@/lib/auth';
+import { requireSuperAdmin } from '@/lib/auth';
 import { z } from 'zod';
 
 const userUpdateSchema = z.object({
@@ -11,8 +11,8 @@ const userUpdateSchema = z.object({
 
 export async function PUT(request, { params }) {
   try {
-    const isAdmin = await requireAdmin();
-    if (!isAdmin) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+    const isSuperAdmin = await requireSuperAdmin();
+    if (!isSuperAdmin) return NextResponse.json({ error: 'Forbidden: Super Admin only' }, { status: 403 });
 
     const { id } = await params;
     const body = await request.json();
@@ -54,8 +54,8 @@ export async function PUT(request, { params }) {
 
 export async function DELETE(request, { params }) {
   try {
-    const isAdmin = await requireAdmin();
-    if (!isAdmin) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+    const isSuperAdmin = await requireSuperAdmin();
+    if (!isSuperAdmin) return NextResponse.json({ error: 'Forbidden: Super Admin only' }, { status: 403 });
 
     const { id } = await params;
 

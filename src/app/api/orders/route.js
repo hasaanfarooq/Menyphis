@@ -75,23 +75,82 @@ export async function POST(request) {
     const orderRows = Array.isArray(orderResult) ? orderResult : (orderResult.rows || orderResult);
     const orderId = orderRows[0].id;
 
-    // Insert order items
-    // Construct the query for multiple inserts
+    // Fetch store_id for products to associate items with their vendor store
+    const productIds = items.map((i) => i.id);
+    const productStores = await sql.query(
+      `SELECT id, store_id FROM products WHERE id = ANY($1::int[])`,
+      [productIds]
+    );
+    const storeMap = {};
+    productStores.forEach((p) => {
+      storeMap[p.id] = p.store_id;
+    });
+
+    // Insert order items with store_id
     let values = [];
     let placeholders = [];
     let paramIndex = 1;
 
     items.forEach((item) => {
-      placeholders.push(`($${paramIndex++}, $${paramIndex++}, $${paramIndex++}, $${paramIndex++}, $${paramIndex++}, $${paramIndex++})`);
-      values.push(orderId, item.id, item.quantity, item.size || null, item.color || null, item.price);
+      placeholders.push(
+        `($${paramIndex++}, $${paramIndex++}, $${paramIndex++}, $${paramIndex++}, $${paramIndex++}, $${paramIndex++}, $${paramIndex++})`
+      );
+      values.push(
+        orderId,
+        item.id,
+        storeMap[item.id] || null,
+        item.quantity,
+        item.size || null,
+        item.color || null,
+        item.price
+      );
     });
 
     const query = `
-      INSERT INTO order_items (order_id, product_id, quantity, size, color, price)
+      INSERT INTO order_items (order_id, product_id, store_id, quantity, size, color, price)
       VALUES ${placeholders.join(', ')}
     `;
 
     await sql.query(query, values);
+
+    // --- 1. Real Inventory & Sold Count Updates ---
+    // Deduct stock (cannot go below 0) and increment total_sold
+    for (const item of items) {
+      await sql.query(
+        `UPDATE products 
+         SET stock = GREATEST(0, COALESCE(stock, 0) - $1),
+             total_sold = COALESCE(total_sold, 0) + $1
+         WHERE id = $2`,
+        [item.quantity, item.id]
+      );
+    }
+
+    // --- 2. Multi-Tenant Vendor Commission & Payout Accrual ---
+    // Calculate each store's earnings minus platform commission
+    const storeItemGroups = {};
+    items.forEach(item => {
+      const sId = storeMap[item.id];
+      if (sId) {
+        if (!storeItemGroups[sId]) storeItemGroups[sId] = 0;
+        storeItemGroups[sId] += parseFloat(item.price) * item.quantity;
+      }
+    });
+
+    for (const [storeIdStr, grossAmount] of Object.entries(storeItemGroups)) {
+      const sId = parseInt(storeIdStr);
+      // Fetch store's custom commission rate (defaults to 10%)
+      const storeRes = await sql.query('SELECT commission_rate FROM stores WHERE id = $1', [sId]);
+      const commissionRate = storeRes[0]?.commission_rate ? parseFloat(storeRes[0].commission_rate) : 10.0;
+      const commissionAmount = (grossAmount * commissionRate) / 100;
+      const netVendorEarnings = Math.max(0, grossAmount - commissionAmount);
+
+      await sql.query(
+        `UPDATE stores 
+         SET pending_payout = COALESCE(pending_payout, 0) + $1 
+         WHERE id = $2`,
+        [netVendorEarnings, sId]
+      );
+    }
 
     // --- Record coupon use and increment count ---
     if (couponId) {

@@ -6,8 +6,10 @@ import ProductCard from '@/components/ProductCard';
 import FlashSaleSection from '@/components/FlashSaleSection';
 import AnnouncementBar from '@/components/AnnouncementBar';
 import PopupBanner from '@/components/PopupBanner';
+import TopStoresSection from '@/components/TopStoresSection';
 import { useCurrency } from '@/context/CurrencyContext';
-
+import { useFlashSale } from '@/context/FlashSaleContext';
+import { ZapIcon } from '@/components/Icons';
 
 export default function Home() {
   const [allProducts, setAllProducts] = useState([]);
@@ -17,29 +19,59 @@ export default function Home() {
   const [seeded, setSeeded] = useState(false);
   const catRowRef = useRef(null);
   const { formatPrice } = useCurrency();
+  const { sale: flashSale } = useFlashSale();
+
+  // Real countdown timer calculation based on flash sale ends_at
+  const [flashTimeLeft, setFlashTimeLeft] = useState({ hours: 0, minutes: 0, seconds: 0, expired: false });
+  useEffect(() => {
+    if (!flashSale || !flashSale.ends_at) return;
+    const calculate = () => {
+      const diff = new Date(flashSale.ends_at) - new Date();
+      if (diff <= 0) return { hours: 0, minutes: 0, seconds: 0, expired: true };
+      const hours = Math.floor(diff / (1000 * 60 * 60));
+      const minutes = Math.floor((diff % (1000 * 60 * 60)) / (1000 * 60));
+      const seconds = Math.floor((diff % (1000 * 60)) / 1000);
+      return { hours, minutes, seconds, expired: false };
+    };
+    setFlashTimeLeft(calculate());
+    const interval = setInterval(() => {
+      setFlashTimeLeft(calculate());
+    }, 1000);
+    return () => clearInterval(interval);
+  }, [flashSale]);
+
+  const timerExpired = flashTimeLeft.expired;
 
   useEffect(() => {
     async function load() {
       try {
-        let [prodRes, catRes] = await Promise.all([
+        let [prodRes, featRes, catRes] = await Promise.all([
           fetch('/api/products?limit=50'),
+          fetch('/api/products?featured=true&limit=20'),
           fetch('/api/categories')
         ]);
         
         let data = await prodRes.json();
+        let featData = await featRes.json();
         let catData = await catRes.json();
 
         if (Array.isArray(data) && data.length === 0 && !seeded) {
           setSeeded(true);
           await fetch('/api/seed');
           prodRes = await fetch('/api/products?limit=50');
+          featRes = await fetch('/api/products?featured=true&limit=20');
           catRes = await fetch('/api/categories');
           data = await prodRes.json();
+          featData = await featRes.json();
           catData = await catRes.json();
         }
 
         if (Array.isArray(data)) {
           setAllProducts(data);
+        }
+        if (Array.isArray(featData)) {
+          setFeaturedProducts(featData);
+        } else if (Array.isArray(data)) {
           setFeaturedProducts(data.filter(p => p.featured));
         }
         
@@ -99,6 +131,9 @@ export default function Home() {
         </div>
       </div>
 
+      {/* Top Stores Showcase (Multi-Tenant Marketplace) */}
+      <TopStoresSection />
+
       {/* Category Circles */}
       <section className="categories-section">
         <div className="container">
@@ -110,7 +145,12 @@ export default function Home() {
               {categories.map((cat, i) => (
                 <Link key={i} href={`/shop?category=${cat.slug}`} className="category-circle">
                   <div className="category-circle-img">
-                    <img src={cat.image_url || 'https://images.unsplash.com/photo-1596755094514-f87e34085b2c?w=150&h=150&fit=crop'} alt={cat.name} loading="lazy" />
+                    <img 
+                      src={cat.image_url || 'https://images.unsplash.com/photo-1596755094514-f87e34085b2c?w=150&h=150&fit=crop'} 
+                      alt={cat.name} 
+                      loading="lazy" 
+                      onError={(e) => { e.currentTarget.src = 'https://images.unsplash.com/photo-1576053139778-7e32f2ae3cfd?w=200&h=200&fit=crop'; }}
+                    />
                   </div>
                   <span className="category-circle-name">{cat.name}</span>
                 </Link>
@@ -126,24 +166,26 @@ export default function Home() {
       {/* Dynamic Flash Sale Section */}
       <FlashSaleSection />
 
-      {/* Flash Sale Bar */}
-      <div className="flash-sale">
-        <div className="flash-sale-inner">
-          <div className="flash-sale-title">
-            ⚡ FLASH SALE
+      {/* Flash Sale Bar — dynamically bound to active sale countdown */}
+      {flashSale && !timerExpired && (
+        <div className="flash-sale">
+          <div className="flash-sale-inner">
+            <div className="flash-sale-title" style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+              <ZapIcon size={16} color="#FFD700" /> {flashSale.title ? flashSale.title.toUpperCase() : 'FLASH SALE'}
+            </div>
+            <div className="flash-sale-timer">
+              <span className="flash-timer-unit">{String(flashTimeLeft.hours).padStart(2, '0')}</span>
+              <span className="flash-timer-sep">:</span>
+              <span className="flash-timer-unit">{String(flashTimeLeft.minutes).padStart(2, '0')}</span>
+              <span className="flash-timer-sep">:</span>
+              <span className="flash-timer-unit">{String(flashTimeLeft.seconds).padStart(2, '0')}</span>
+            </div>
+            <Link href="/shop" style={{ color: '#FFD700', fontSize: '13px', fontWeight: 600 }}>
+              Shop Deals →
+            </Link>
           </div>
-          <div className="flash-sale-timer">
-            <span className="flash-timer-unit">08</span>
-            <span className="flash-timer-sep">:</span>
-            <span className="flash-timer-unit">42</span>
-            <span className="flash-timer-sep">:</span>
-            <span className="flash-timer-unit">17</span>
-          </div>
-          <Link href="/shop" style={{ color: '#FFD700', fontSize: '13px', fontWeight: 600 }}>
-            Shop Now →
-          </Link>
         </div>
-      </div>
+      )}
 
       {/* Featured Products */}
       <section className="products-section">

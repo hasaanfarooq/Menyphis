@@ -1,14 +1,27 @@
 import { NextResponse } from 'next/server';
 import { sql } from '@/lib/db';
-import { requireAdmin } from '@/lib/auth';
+import { getAdminContext } from '@/lib/auth';
 
 // PATCH - approve or reject a review
 export async function PATCH(request, { params }) {
   try {
-    const isAdmin = await requireAdmin();
-    if (!isAdmin) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+    const adminCtx = await getAdminContext();
+    if (!adminCtx) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
 
     const { id } = await params;
+
+    // Check store ownership if store admin
+    if (adminCtx.isStoreAdmin) {
+      const check = await sql.query(`
+        SELECT r.id FROM reviews r
+        JOIN products p ON r.product_id = p.id
+        WHERE r.id = $1 AND p.store_id = $2
+      `, [id, adminCtx.storeId]);
+      if (check.length === 0) {
+        return NextResponse.json({ error: 'Forbidden: You do not own the product for this review' }, { status: 403 });
+      }
+    }
+
     const body = await request.json();
     const { approved } = body;
 
@@ -44,10 +57,22 @@ export async function PATCH(request, { params }) {
 // DELETE a review
 export async function DELETE(request, { params }) {
   try {
-    const isAdmin = await requireAdmin();
-    if (!isAdmin) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+    const adminCtx = await getAdminContext();
+    if (!adminCtx) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
 
     const { id } = await params;
+
+    // Check store ownership if store admin
+    if (adminCtx.isStoreAdmin) {
+      const check = await sql.query(`
+        SELECT r.id FROM reviews r
+        JOIN products p ON r.product_id = p.id
+        WHERE r.id = $1 AND p.store_id = $2
+      `, [id, adminCtx.storeId]);
+      if (check.length === 0) {
+        return NextResponse.json({ error: 'Forbidden: You do not own the product for this review' }, { status: 403 });
+      }
+    }
 
     // Get product_id before deleting
     const review = await sql.query('SELECT product_id FROM reviews WHERE id = $1', [id]);

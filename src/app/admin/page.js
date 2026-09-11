@@ -1,21 +1,79 @@
 import { sql } from '@/lib/db';
+import { getAdminContext } from '@/lib/auth';
+import Link from 'next/link';
 
 export default async function AdminDashboard() {
-  // Fetch real data
-  const revenueResult = await sql`SELECT SUM(total) as sum FROM orders WHERE status != 'cancelled'`;
-  const ordersResult = await sql`SELECT COUNT(id) as count FROM orders WHERE status != 'cancelled'`;
-  const productsResult = await sql`SELECT COUNT(id) as count FROM products`;
-  const recentOrders = await sql`
-    SELECT o.id, o.total, o.status, u.name as customer_name 
-    FROM orders o 
-    LEFT JOIN users u ON o.user_id = u.id 
-    ORDER BY o.created_at DESC 
-    LIMIT 5
-  `;
+  const adminCtx = await getAdminContext();
+  const isStoreAdmin = adminCtx?.isStoreAdmin;
+  const storeId = adminCtx?.storeId;
 
-  const totalRevenue = revenueResult[0]?.sum || 0;
-  const totalOrders = parseInt(ordersResult[0]?.count || 0);
-  const totalProducts = parseInt(productsResult[0]?.count || 0);
+  let totalRevenue = 0;
+  let totalOrders = 0;
+  let totalProducts = 0;
+  let recentOrders = [];
+  let topStores = [];
+
+  if (isStoreAdmin && storeId) {
+    const rev = await sql`
+      SELECT SUM(oi.price * oi.quantity) as sum 
+      FROM order_items oi 
+      JOIN orders o ON oi.order_id = o.id 
+      WHERE oi.store_id = ${storeId} AND o.status != 'cancelled'
+    `;
+    const ord = await sql`
+      SELECT COUNT(DISTINCT oi.order_id) as count 
+      FROM order_items oi 
+      JOIN orders o ON oi.order_id = o.id 
+      WHERE oi.store_id = ${storeId} AND o.status != 'cancelled'
+    `;
+    const prod = await sql`SELECT COUNT(id) as count FROM products WHERE store_id = ${storeId}`;
+    const recent = await sql`
+      SELECT DISTINCT o.id, o.status, o.created_at, u.name as customer_name,
+             COALESCE(SUM(oi.price * oi.quantity), 0) as total
+      FROM orders o
+      LEFT JOIN users u ON o.user_id = u.id
+      INNER JOIN order_items oi ON o.id = oi.order_id
+      WHERE oi.store_id = ${storeId}
+      GROUP BY o.id, o.status, o.created_at, u.name
+      ORDER BY o.created_at DESC
+      LIMIT 5
+    `;
+
+    totalRevenue = rev[0]?.sum || 0;
+    totalOrders = parseInt(ord[0]?.count || 0);
+    totalProducts = parseInt(prod[0]?.count || 0);
+    recentOrders = recent;
+  } else {
+    // Super Admin platform wide metrics
+    const rev = await sql`SELECT SUM(total) as sum FROM orders WHERE status != 'cancelled'`;
+    const ord = await sql`SELECT COUNT(id) as count FROM orders WHERE status != 'cancelled'`;
+    const prod = await sql`SELECT COUNT(id) as count FROM products`;
+    const recent = await sql`
+      SELECT o.id, o.total, o.status, u.name as customer_name 
+      FROM orders o 
+      LEFT JOIN users u ON o.user_id = u.id 
+      ORDER BY o.created_at DESC 
+      LIMIT 5
+    `;
+    const stores = await sql`
+      SELECT s.id, s.name, s.slug, s.logo_url, s.is_featured, s.rating,
+             COUNT(DISTINCT p.id) as product_count,
+             COALESCE(SUM(oi.price * oi.quantity), 0) as store_revenue
+      FROM stores s
+      LEFT JOIN products p ON s.id = p.store_id
+      LEFT JOIN order_items oi ON s.id = oi.store_id
+      GROUP BY s.id
+      ORDER BY store_revenue DESC
+      LIMIT 5
+    `;
+
+    totalRevenue = rev[0]?.sum || 0;
+    totalOrders = parseInt(ord[0]?.count || 0);
+    totalProducts = parseInt(prod[0]?.count || 0);
+    recentOrders = recent;
+    topStores = stores;
+  }
+
   const averageValue = totalOrders > 0 ? (totalRevenue / totalOrders) : 0;
 
   // Format currency

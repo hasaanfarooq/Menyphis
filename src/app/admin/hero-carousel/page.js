@@ -1,5 +1,7 @@
 'use client';
 import { useState, useEffect, useCallback } from 'react';
+import { ImageIcon, MegaphoneIcon, EditIcon, XIcon, ClockIcon, BellIcon, ZapIcon } from '@/components/Icons';
+import SuperAdminGuard from '@/components/SuperAdminGuard';
 
 // ── Image Uploader ─────────────────────────────────────────────
 function ImageUploader({ value, onChange, label = 'Image', aspect = '16/9' }) {
@@ -29,12 +31,16 @@ function ImageUploader({ value, onChange, label = 'Image', aspect = '16/9' }) {
         {preview ? (
           <>
             <img src={preview} alt="" style={{ width: '100%', height: '100%', objectFit: 'cover', display: 'block' }} />
-            <button type="button" onClick={() => { setPreview(''); onChange(''); }}
-              style={{ position: 'absolute', top: '8px', right: '8px', background: 'rgba(0,0,0,0.6)', color: 'white', border: 'none', borderRadius: '50%', width: '28px', height: '28px', cursor: 'pointer', fontSize: '16px' }}>×</button>
+            <button type="button" onClick={() => { setPreview(''); onChange(''); }} aria-label="Remove image"
+              style={{ position: 'absolute', top: '8px', right: '8px', background: 'rgba(0,0,0,0.6)', color: 'white', border: 'none', borderRadius: '50%', width: '28px', height: '28px', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+              <XIcon size={14} />
+            </button>
           </>
         ) : (
           <label style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', height: '100%', cursor: 'pointer', gap: '8px', padding: '16px', textAlign: 'center', minHeight: '100px' }}>
-            <span style={{ fontSize: '28px' }}>{uploading ? '⏳' : '📷'}</span>
+            <span style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#64748b' }}>
+              {uploading ? <ClockIcon size={28} /> : <ImageIcon size={28} />}
+            </span>
             <span style={{ fontSize: '13px', color: '#64748b' }}>{uploading ? 'Uploading...' : 'Click to upload'}</span>
             <input type="file" accept="image/*" style={{ display: 'none' }} disabled={uploading}
               onChange={e => e.target.files[0] && handleFile(e.target.files[0])} />
@@ -77,15 +83,16 @@ const defaultBanner = (placement) => ({
 });
 
 const PLACEMENTS = [
-  { key: 'announcement_bar', label: '📢 Announcement Bar', desc: 'Thin bar at the top of every page', icon: '📢', hasImage: false },
-  { key: 'popup', label: '💬 Popup Banner', desc: 'Overlay shown after a delay', icon: '💬', hasImage: true },
-  { key: 'promo_strip', label: '🎯 Promo Strip', desc: 'Full-width promotional strip on homepage', icon: '🎯', hasImage: true },
+  { key: 'announcement_bar', label: 'Announcement Bar', desc: 'Thin bar at the top of every page', icon: <MegaphoneIcon size={20} />, hasImage: false },
+  { key: 'popup', label: 'Popup Banner', desc: 'Overlay shown after a delay', icon: <BellIcon size={20} />, hasImage: true },
+  { key: 'promo_strip', label: 'Promo Strip', desc: 'Full-width promotional strip on homepage', icon: <ZapIcon size={20} />, hasImage: true },
 ];
 
 export default function HeroCarouselAdminPage() {
   const [tab, setTab] = useState('slides');
   const [slides, setSlides] = useState([]);
   const [banners, setBanners] = useState([]);
+  const [adminInfo, setAdminInfo] = useState(null);
   const [loading, setLoading] = useState(true);
 
   // Slide modal state
@@ -110,7 +117,11 @@ export default function HeroCarouselAdminPage() {
 
   useEffect(() => {
     setLoading(true);
-    Promise.all([fetchSlides(), fetchBanners()]).finally(() => setLoading(false));
+    Promise.all([
+      fetch('/api/admin/me').then(r => r.ok ? r.json() : null).then(setAdminInfo),
+      fetchSlides(),
+      fetchBanners()
+    ]).finally(() => setLoading(false));
   }, [fetchSlides, fetchBanners]);
 
   // ─── SLIDES ───────────────────────────────────────────────────
@@ -205,6 +216,15 @@ export default function HeroCarouselAdminPage() {
     fetchBanners();
   };
 
+  if (adminInfo && !adminInfo.isSuperAdmin) {
+    return (
+      <SuperAdminGuard
+        feature="Homepage Carousel & Banners"
+        description="Marketplace homepage hero slides, announcements, and promotional banners are managed centrally by platform super administrators."
+      />
+    );
+  }
+
   return (
     <div>
       {/* Header */}
@@ -215,9 +235,21 @@ export default function HeroCarouselAdminPage() {
 
       {/* Tabs */}
       <div style={{ display: 'flex', gap: '4px', background: '#f1f5f9', borderRadius: '10px', padding: '4px', width: 'fit-content', marginBottom: '24px' }}>
-        {[{ key: 'slides', label: '🖼 Hero Slides' }, { key: 'banners', label: '📣 Banners & Ads' }].map(t => (
+        {[
+          { key: 'slides', label: 'Hero Slides', icon: <ImageIcon size={16} /> },
+          { key: 'banners', label: 'Banners & Ads', icon: <MegaphoneIcon size={16} /> }
+        ].map(t => (
           <button key={t.key} onClick={() => setTab(t.key)}
-            style={{ padding: '8px 20px', borderRadius: '7px', border: 'none', cursor: 'pointer', fontWeight: tab === t.key ? '700' : '400', fontSize: '14px', background: tab === t.key ? 'white' : 'transparent', color: tab === t.key ? '#1e293b' : '#64748b', boxShadow: tab === t.key ? '0 1px 4px rgba(0,0,0,0.1)' : 'none', transition: 'all 0.15s' }}>
+            style={{
+              padding: '8px 20px', borderRadius: '7px', border: 'none', cursor: 'pointer',
+              fontWeight: tab === t.key ? '700' : '400', fontSize: '14px',
+              background: tab === t.key ? 'white' : 'transparent',
+              color: tab === t.key ? '#1e293b' : '#64748b',
+              boxShadow: tab === t.key ? '0 1px 4px rgba(0,0,0,0.1)' : 'none',
+              transition: 'all 0.15s',
+              display: 'inline-flex', alignItems: 'center', gap: '8px',
+            }}>
+            {t.icon}
             {t.label}
           </button>
         ))}
@@ -236,7 +268,9 @@ export default function HeroCarouselAdminPage() {
 
           {slides.length === 0 ? (
             <div className="admin-card" style={{ padding: '64px', textAlign: 'center' }}>
-              <div style={{ fontSize: '48px', marginBottom: '12px' }}>🖼</div>
+              <div style={{ display: 'flex', justifyContent: 'center', marginBottom: '12px' }}>
+                <ImageIcon size={48} color="#94a3b8" />
+              </div>
               <div style={{ fontSize: '18px', fontWeight: '600', marginBottom: '8px' }}>No slides yet</div>
               <div style={{ color: '#64748b', marginBottom: '24px' }}>Add your first hero slide to power the carousel.</div>
               <button onClick={() => openSlideModal()} style={{ padding: '10px 24px', background: '#1e293b', color: 'white', borderRadius: '6px', border: 'none', cursor: 'pointer', fontWeight: '600' }}>Add Slide</button>
@@ -252,7 +286,7 @@ export default function HeroCarouselAdminPage() {
                         <img src={slide.image_url} alt={slide.title || ''} style={{ width: '100%', height: '100%', objectFit: 'cover', display: 'block' }} />
                       ) : (
                         <div style={{ width: '100%', height: '100%', background: 'linear-gradient(135deg, #1e293b, #334155)', minHeight: '90px', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-                          <span style={{ color: '#64748b', fontSize: '28px' }}>🖼</span>
+                          <ImageIcon size={28} color="#64748b" />
                         </div>
                       )}
                       {slide.overlay_color && slide.image_url && (
@@ -315,7 +349,7 @@ export default function HeroCarouselAdminPage() {
                 <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: isEditing ? '20px' : 0, flexWrap: 'wrap', gap: '10px' }}>
                   <div>
                     <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
-                      <span style={{ fontSize: '22px' }}>{placement.icon}</span>
+                      <span style={{ display: 'flex', alignItems: 'center', color: '#1e293b' }}>{placement.icon}</span>
                       <div>
                         <div style={{ fontWeight: '700', fontSize: '16px' }}>{placement.label}</div>
                         <div style={{ fontSize: '13px', color: '#64748b' }}>{placement.desc}</div>
@@ -387,15 +421,15 @@ export default function HeroCarouselAdminPage() {
                         {placement.key === 'announcement_bar' && (
                           <div style={{ display: 'flex', gap: '10px', flexWrap: 'wrap' }}>
                             <div className="form-group" style={{ flex: 1, margin: 0 }}>
-                              <label>Icon (emoji)</label>
-                              <input type="text" value={editingBanner.form.extra_config?.icon || ''} className="form-input" placeholder="🎉"
+                              <label>Tag / Text Badge</label>
+                              <input type="text" value={editingBanner.form.extra_config?.icon || ''} className="form-input" placeholder="e.g. SALE"
                                 onChange={e => setBannerExtra('icon', e.target.value)} />
                             </div>
                             <div className="form-group" style={{ flex: 1, margin: 0 }}>
                               <label>Dismissable</label>
                               <select value={editingBanner.form.extra_config?.dismissable === false ? 'no' : 'yes'} className="form-input"
                                 onChange={e => setBannerExtra('dismissable', e.target.value !== 'no')}>
-                                <option value="yes">Yes (show × button)</option>
+                                <option value="yes">Yes (show close button)</option>
                                 <option value="no">No (always visible)</option>
                               </select>
                             </div>
@@ -462,8 +496,20 @@ export default function HeroCarouselAdminPage() {
         <div className="admin-modal-overlay">
           <div className="admin-modal" style={{ maxWidth: '800px', width: '95vw', maxHeight: '92vh', overflowY: 'auto' }}>
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '20px' }}>
-              <h2 style={{ margin: 0 }}>{editingSlide ? '✏️ Edit Slide' : '🖼 New Hero Slide'}</h2>
-              <button onClick={() => setShowSlideModal(false)} style={{ background: 'none', border: 'none', fontSize: '24px', cursor: 'pointer', color: '#64748b' }}>×</button>
+              <h2 style={{ margin: 0 }}>
+                {editingSlide ? (
+                  <span style={{ display: 'inline-flex', alignItems: 'center', gap: '8px' }}>
+                    <EditIcon size={20} /> Edit Slide
+                  </span>
+                ) : (
+                  <span style={{ display: 'inline-flex', alignItems: 'center', gap: '8px' }}>
+                    <ImageIcon size={20} /> New Hero Slide
+                  </span>
+                )}
+              </h2>
+              <button onClick={() => setShowSlideModal(false)} aria-label="Close modal" style={{ background: 'none', border: 'none', cursor: 'pointer', color: '#64748b', padding: '4px', display: 'flex', alignItems: 'center' }}>
+                <XIcon size={20} />
+              </button>
             </div>
 
             <form onSubmit={handleSlideSubmit} className="admin-form">
@@ -483,9 +529,8 @@ export default function HeroCarouselAdminPage() {
                     <div style={{ display: 'flex', gap: '6px' }}>
                       {['left', 'center', 'right'].map(a => (
                         <button key={a} type="button" onClick={() => setSlide('text_align', a)}
-                          style={{ flex: 1, padding: '8px', border: `2px solid ${slideForm.text_align === a ? '#1e293b' : '#e2e8f0'}`, borderRadius: '6px', background: slideForm.text_align === a ? '#1e293b' : 'white', color: slideForm.text_align === a ? 'white' : '#64748b', cursor: 'pointer', fontWeight: '700', fontSize: '14px' }}>
-                          {a === 'left' ? '⬛' : a === 'center' ? '⬜' : '⬛'}
-                          {a[0].toUpperCase()}
+                          style={{ flex: 1, padding: '8px', border: `2px solid ${slideForm.text_align === a ? '#1e293b' : '#e2e8f0'}`, borderRadius: '6px', background: slideForm.text_align === a ? '#1e293b' : 'white', color: slideForm.text_align === a ? 'white' : '#64748b', cursor: 'pointer', fontWeight: '700', fontSize: '13px', textTransform: 'capitalize' }}>
+                          {a}
                         </button>
                       ))}
                     </div>

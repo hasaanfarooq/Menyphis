@@ -2,6 +2,7 @@
 import { useState, useEffect, useCallback, Suspense } from 'react';
 import { useSearchParams } from 'next/navigation';
 import ProductCard from '@/components/ProductCard';
+import { SearchIcon } from '@/components/Icons';
 
 function ShopContent() {
   const searchParams = useSearchParams();
@@ -103,7 +104,9 @@ function ShopContent() {
           </div>
         ) : products.length === 0 ? (
           <div style={{ textAlign: 'center', padding: '80px 20px', color: 'var(--text-muted)' }}>
-            <div style={{ fontSize: '48px', marginBottom: '12px' }}>🔍</div>
+            <div style={{ display: 'flex', justifyContent: 'center', marginBottom: '12px' }}>
+              <SearchIcon size={48} color="var(--border-color)" />
+            </div>
             <h3 style={{ fontSize: '18px', fontWeight: 600, marginBottom: '8px', color: 'var(--text-secondary)' }}>No products found</h3>
             <p>Try a different category or check back later.</p>
           </div>

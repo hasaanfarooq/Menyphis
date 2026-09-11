@@ -1,11 +1,11 @@
 import { NextResponse } from 'next/server';
 import { sql } from '@/lib/db';
-import { requireAdmin } from '@/lib/auth';
+import { requireSuperAdmin } from '@/lib/auth';
 
 export async function GET() {
   try {
-    const isAdmin = await requireAdmin();
-    if (!isAdmin) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+    const isSuperAdmin = await requireSuperAdmin();
+    if (!isSuperAdmin) return NextResponse.json({ error: 'Forbidden: Super Admin only' }, { status: 403 });
     const slides = await sql.query('SELECT * FROM hero_slides ORDER BY sort_order ASC, id ASC');
     return NextResponse.json(slides);
   } catch (e) {
@@ -15,8 +15,8 @@ export async function GET() {
 
 export async function POST(request) {
   try {
-    const isAdmin = await requireAdmin();
-    if (!isAdmin) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+    const isSuperAdmin = await requireSuperAdmin();
+    if (!isSuperAdmin) return NextResponse.json({ error: 'Forbidden: Super Admin only' }, { status: 403 });
     const body = await request.json();
     const {
       title, subtitle, badge_text, cta_text, cta_link,

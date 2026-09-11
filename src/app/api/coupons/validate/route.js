@@ -10,17 +10,19 @@ export async function POST(request) {
     const userId = session?.user?.id || null;
 
     const body = await request.json();
-    const { code, orderTotal } = body;
+    const { code, orderTotal, items } = body;
 
     if (!code) {
       return NextResponse.json({ error: 'Coupon code is required' }, { status: 400 });
     }
 
-    // Fetch coupon
-    const coupons = await sql.query(
-      'SELECT * FROM coupons WHERE code = $1',
-      [code.toUpperCase().trim()]
-    );
+    // Fetch coupon with store info
+    const coupons = await sql.query(`
+      SELECT c.*, s.name as store_name
+      FROM coupons c
+      LEFT JOIN stores s ON c.store_id = s.id
+      WHERE c.code = $1
+    `, [code.toUpperCase().trim()]);
 
     if (!coupons.length) {
       return NextResponse.json({ error: 'Invalid coupon code' }, { status: 404 });
@@ -47,12 +49,38 @@ export async function POST(request) {
       return NextResponse.json({ error: 'This coupon has reached its usage limit' }, { status: 400 });
     }
 
-    // Minimum order amount
     const subtotal = parseFloat(orderTotal) || 0;
+
+    // Minimum order amount
     if (parseFloat(coupon.min_order_amount) > 0 && subtotal < parseFloat(coupon.min_order_amount)) {
       return NextResponse.json({
         error: `Minimum order of $${parseFloat(coupon.min_order_amount).toFixed(2)} required for this coupon`
       }, { status: 400 });
+    }
+
+    // Store-specific verification
+    let applicableSubtotal = subtotal;
+    if (coupon.store_id) {
+      if (Array.isArray(items) && items.length > 0) {
+        const productIds = items.map(i => i.id || i.product_id).filter(Boolean);
+        if (productIds.length > 0) {
+          const storeProducts = await sql.query(
+            'SELECT id FROM products WHERE id = ANY($1::int[]) AND store_id = $2',
+            [productIds, coupon.store_id]
+          );
+          const storeProductIds = new Set(storeProducts.map(p => p.id));
+          const matchingItems = items.filter(i => storeProductIds.has(i.id || i.product_id));
+          if (matchingItems.length === 0) {
+            return NextResponse.json({
+              error: `This coupon is only valid for items sold by "${coupon.store_name || 'this store'}".`
+            }, { status: 400 });
+          }
+          applicableSubtotal = matchingItems.reduce(
+            (sum, i) => sum + (parseFloat(i.price) * (parseInt(i.quantity) || 1)),
+            0
+          );
+        }
+      }
     }
 
     // Per-user checks (only for logged-in users)
@@ -78,15 +106,15 @@ export async function POST(request) {
       }
     }
 
-    // Compute discount
+    // Compute discount against applicable subtotal
     let discountAmount = 0;
     if (coupon.type === 'percentage') {
-      discountAmount = subtotal * (parseFloat(coupon.value) / 100);
+      discountAmount = applicableSubtotal * (parseFloat(coupon.value) / 100);
       if (coupon.max_discount_amount) {
         discountAmount = Math.min(discountAmount, parseFloat(coupon.max_discount_amount));
       }
     } else if (coupon.type === 'fixed') {
-      discountAmount = Math.min(parseFloat(coupon.value), subtotal);
+      discountAmount = Math.min(parseFloat(coupon.value), applicableSubtotal);
     } else if (coupon.type === 'free_shipping') {
       discountAmount = 0; // handled as shipping = 0 on frontend
     }
@@ -102,6 +130,8 @@ export async function POST(request) {
         type: coupon.type,
         value: coupon.value,
         description: coupon.description,
+        store_id: coupon.store_id,
+        store_name: coupon.store_name,
       },
       discountAmount,
       finalTotal,

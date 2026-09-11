@@ -29,12 +29,15 @@ export async function decrypt(input) {
 export async function setAuthCookie(user) {
   const expires = new Date(Date.now() + 7 * 24 * 60 * 60 * 1000); // 7 days
 
-  // #9 FIX: Only store the minimum needed fields in the JWT — never the full user row
   const minimalUser = {
     id: user.id,
     email: user.email,
     name: user.name,
     is_admin: user.is_admin ?? false,
+    role: user.role || (user.is_admin ? 'super_admin' : 'customer'),
+    store_id: user.store_id || null,
+    store_name: user.store_name || null,
+    store_slug: user.store_slug || null,
   };
 
   const session = await encrypt({ user: minimalUser, expires });
@@ -67,18 +70,57 @@ export async function getSession() {
   return await decrypt(session);
 }
 
-// #7 FIX: Always verify admin status against the DB, not just the JWT claim
-export async function requireAdmin() {
+// Get rich admin context with store information directly verified from the DB
+export async function getAdminContext() {
   const session = await getSession();
   if (!session || !session.user || !session.user.id) {
-    return false;
+    return null;
   }
 
   try {
-    const rows = await sql`SELECT is_admin FROM users WHERE id = ${session.user.id} LIMIT 1`;
-    if (!rows || rows.length === 0) return false;
-    return rows[0].is_admin === true;
+    const rows = await sql`
+      SELECT u.id, u.name, u.email, u.is_admin, u.role, u.store_id,
+             s.name as store_name, s.slug as store_slug, s.logo_url as store_logo
+      FROM users u
+      LEFT JOIN stores s ON u.store_id = s.id
+      WHERE u.id = ${session.user.id} LIMIT 1
+    `;
+    if (!rows || rows.length === 0) return null;
+    const u = rows[0];
+
+    // Must be either an admin or store_admin
+    if (!u.is_admin && u.role !== 'super_admin' && u.role !== 'store_admin') {
+      return null;
+    }
+
+    const isSuperAdmin = u.role === 'super_admin' || (u.is_admin && !u.store_id);
+
+    return {
+      userId: u.id,
+      name: u.name,
+      email: u.email,
+      is_admin: true,
+      role: isSuperAdmin ? 'super_admin' : 'store_admin',
+      isSuperAdmin,
+      isStoreAdmin: !isSuperAdmin && !!u.store_id,
+      storeId: u.store_id,
+      storeName: u.store_name,
+      storeSlug: u.store_slug,
+      storeLogo: u.store_logo,
+    };
   } catch {
-    return false;
+    return null;
   }
+}
+
+// Check if user is either a Super Admin or Store Admin
+export async function requireAdmin() {
+  const ctx = await getAdminContext();
+  return !!ctx;
+}
+
+// Check if user is specifically a Super Admin
+export async function requireSuperAdmin() {
+  const ctx = await getAdminContext();
+  return ctx?.isSuperAdmin ? ctx : null;
 }

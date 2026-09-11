@@ -1,12 +1,12 @@
 import { NextResponse } from 'next/server';
 import { sql } from '@/lib/db';
-import { requireAdmin } from '@/lib/auth';
+import { getAdminContext } from '@/lib/auth';
 
 // GET all reviews (admin)
 export async function GET(request) {
   try {
-    const isAdmin = await requireAdmin();
-    if (!isAdmin) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+    const adminCtx = await getAdminContext();
+    if (!adminCtx) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
 
     const { searchParams } = new URL(request.url);
     const status = searchParams.get('status') || 'all'; // 'all', 'approved', 'pending'
@@ -18,6 +18,13 @@ export async function GET(request) {
     let whereClause = `WHERE 1=1`;
     const params = [];
     let idx = 1;
+
+    // Strict vendor scoping: Store admins only see reviews for their store's products
+    if (adminCtx.isStoreAdmin) {
+      whereClause += ` AND p.store_id = $${idx}`;
+      params.push(adminCtx.storeId);
+      idx++;
+    }
 
     if (status === 'approved') {
       whereClause += ` AND r.approved = true`;

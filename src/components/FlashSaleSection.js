@@ -4,6 +4,7 @@ import Link from 'next/link';
 import { useCart } from '@/context/CartContext';
 import { useCurrency } from '@/context/CurrencyContext';
 import { useFlashSale } from '@/context/FlashSaleContext';
+import { ZapIcon, CheckIcon } from '@/components/Icons';
 
 function useCountdown(endsAt) {
   const calcTimeLeft = () => {
@@ -115,9 +116,14 @@ function FlashProductCard({ product, saleDiscount, formatPrice }) {
             background: adding ? '#22c55e' : '#1e293b',
             color: 'white', border: 'none', cursor: 'pointer',
             fontSize: '13px', fontWeight: '600', transition: 'background 0.3s',
+            display: 'flex', alignItems: 'center', justifyContent: 'center',
           }}
         >
-          {adding ? '✓ Added!' : 'Add to Cart'}
+          {adding ? (
+            <span style={{ display: 'inline-flex', alignItems: 'center', gap: '4px' }}>
+              <CheckIcon size={14} color="white" /> Added!
+            </span>
+          ) : 'Add to Cart'}
         </button>
       </div>
     </div>
@@ -161,8 +167,9 @@ export default function FlashSaleSection() {
                 letterSpacing: '2px', textTransform: 'uppercase',
                 boxShadow: '0 4px 12px rgba(239,68,68,0.4)',
                 animation: 'pulse 2s infinite',
+                display: 'inline-flex', alignItems: 'center', gap: '5px',
               }}>
-                ⚡ {sale.badge_text}
+                <ZapIcon size={12} color="white" /> {sale.badge_text}
               </span>
               <span style={{ background: 'linear-gradient(135deg, #ef4444, #dc2626)', color: 'white', borderRadius: '999px', padding: '4px 12px', fontSize: '13px', fontWeight: '700' }}>
                 Up to {sale.discount_percent}% OFF

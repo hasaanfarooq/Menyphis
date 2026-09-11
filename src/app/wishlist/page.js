@@ -3,6 +3,7 @@ import Link from 'next/link';
 import { useWishlist } from '@/context/WishlistContext';
 import { useAuth } from '@/context/AuthContext';
 import ProductCard from '@/components/ProductCard';
+import { HeartIcon } from '@/components/Icons';
 
 export default function WishlistPage() {
   const { items, loading } = useWishlist();
@@ -36,7 +37,9 @@ export default function WishlistPage() {
 
       {items.length === 0 ? (
         <div style={{ textAlign: 'center', padding: '64px 0' }}>
-          <div style={{ fontSize: '48px', color: 'var(--border-color)', marginBottom: '16px' }}>♡</div>
+          <div style={{ display: 'flex', justifyContent: 'center', marginBottom: '16px' }}>
+            <HeartIcon size={48} color="var(--border-color)" />
+          </div>
           <h2 style={{ fontSize: '20px', fontWeight: '600', marginBottom: '8px' }}>Your wishlist is empty</h2>
           <p style={{ color: 'var(--text-secondary)', marginBottom: '24px' }}>
             Tap the heart icon on any product to save it for later.

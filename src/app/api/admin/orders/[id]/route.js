@@ -1,6 +1,6 @@
 import { NextResponse } from 'next/server';
 import { sql } from '@/lib/db';
-import { requireAdmin } from '@/lib/auth';
+import { getAdminContext } from '@/lib/auth';
 import { z } from 'zod';
 
 const updateOrderSchema = z.object({
@@ -11,8 +11,8 @@ const updateOrderSchema = z.object({
 
 export async function GET(request, { params }) {
   try {
-    const isAdmin = await requireAdmin();
-    if (!isAdmin) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+    const adminCtx = await getAdminContext();
+    if (!adminCtx) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
 
     const { id } = await params;
 
@@ -35,18 +35,37 @@ export async function GET(request, { params }) {
     
     const order = orderRows[0];
 
-    // Get order items
-    const itemsResult = await sql.query(`
+    // Get order items with store info
+    let itemsQuery = `
       SELECT 
         oi.*,
         p.name as product_name,
-        p.image_url as product_image
+        p.image_url as product_image,
+        s.name as store_name,
+        s.slug as store_slug
       FROM order_items oi
       LEFT JOIN products p ON oi.product_id = p.id
+      LEFT JOIN stores s ON oi.store_id = s.id
       WHERE oi.order_id = $1
-    `, [id]);
+    `;
+    let queryParams = [id];
 
-    order.items = Array.isArray(itemsResult) ? itemsResult : (itemsResult.rows || itemsResult);
+    if (adminCtx.isStoreAdmin) {
+      itemsQuery += ` AND oi.store_id = $2`;
+      queryParams.push(adminCtx.storeId);
+    }
+
+    const itemsResult = await sql.query(itemsQuery, queryParams);
+    const items = Array.isArray(itemsResult) ? itemsResult : (itemsResult.rows || itemsResult);
+
+    if (adminCtx.isStoreAdmin && items.length === 0) {
+      return NextResponse.json({ error: 'Forbidden: No items from your store in this order' }, { status: 403 });
+    }
+
+    order.items = items;
+    if (adminCtx.isStoreAdmin) {
+      order.total = items.reduce((acc, item) => acc + (parseFloat(item.price) * item.quantity), 0);
+    }
 
     return NextResponse.json(order);
   } catch (error) {
@@ -57,10 +76,19 @@ export async function GET(request, { params }) {
 
 export async function PUT(request, { params }) {
   try {
-    const isAdmin = await requireAdmin();
-    if (!isAdmin) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+    const adminCtx = await getAdminContext();
+    if (!adminCtx) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
 
     const { id } = await params;
+
+    // Check that store admin has items in this order
+    if (adminCtx.isStoreAdmin) {
+      const items = await sql.query('SELECT id FROM order_items WHERE order_id = $1 AND store_id = $2', [id, adminCtx.storeId]);
+      if (!items.length) {
+        return NextResponse.json({ error: 'Forbidden: No products from your store in this order' }, { status: 403 });
+      }
+    }
+
     const body = await request.json();
 
     const parsed = updateOrderSchema.safeParse(body);

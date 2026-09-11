@@ -1,6 +1,7 @@
 'use client';
 import { useState } from 'react';
 import Link from 'next/link';
+import { PackageIcon, SlidersIcon, TruckIcon, CheckCircleIcon, XCircleIcon, ClockIcon } from '@/components/Icons';
 
 export default function TrackOrderPage() {
   const [orderId, setOrderId] = useState('');
@@ -38,12 +39,12 @@ export default function TrackOrderPage() {
 
   const getStatusDisplay = (status) => {
     switch(status?.toLowerCase()) {
-      case 'pending': return { text: 'Order Received', color: '#eab308', icon: '📦' };
-      case 'processing': return { text: 'Processing', color: '#3b82f6', icon: '⚙️' };
-      case 'shipped': return { text: 'Shipped', color: '#8b5cf6', icon: '🚚' };
-      case 'delivered': return { text: 'Delivered', color: '#22c55e', icon: '✅' };
-      case 'cancelled': return { text: 'Cancelled', color: '#ef4444', icon: '❌' };
-      default: return { text: status, color: '#64748b', icon: '▪️' };
+      case 'pending': return { text: 'Order Received', color: '#eab308', icon: <PackageIcon size={36} color="#eab308" /> };
+      case 'processing': return { text: 'Processing', color: '#3b82f6', icon: <SlidersIcon size={36} color="#3b82f6" /> };
+      case 'shipped': return { text: 'Shipped', color: '#8b5cf6', icon: <TruckIcon size={36} color="#8b5cf6" /> };
+      case 'delivered': return { text: 'Delivered', color: '#22c55e', icon: <CheckCircleIcon size={36} color="#22c55e" /> };
+      case 'cancelled': return { text: 'Cancelled', color: '#ef4444', icon: <XCircleIcon size={36} color="#ef4444" /> };
+      default: return { text: status, color: '#64748b', icon: <ClockIcon size={36} color="#64748b" /> };
     }
   };
 

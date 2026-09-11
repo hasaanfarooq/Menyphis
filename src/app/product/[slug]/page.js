@@ -6,6 +6,7 @@ import { useWishlist } from '@/context/WishlistContext';
 import { useFlashSale } from '@/context/FlashSaleContext';
 import ProductCard from '@/components/ProductCard';
 import ProductReviews from '@/components/ProductReviews';
+import { ZapIcon, StarIcon, HeartIcon, SparklesIcon, CheckIcon } from '@/components/Icons';
 
 const colorMap = {
   'Black': '#1a1a1a', 'Charcoal': '#36454F', 'Navy': '#1B2A4A',
@@ -25,6 +26,7 @@ export default function ProductDetail({ params }) {
   const [loading, setLoading] = useState(true);
   const [selectedSize, setSelectedSize] = useState('');
   const [selectedColor, setSelectedColor] = useState('');
+  const [activeImage, setActiveImage] = useState('');
   const [added, setAdded] = useState(false);
   const { addItem } = useCart();
   const { formatPrice } = useCurrency();
@@ -40,10 +42,14 @@ export default function ProductDetail({ params }) {
         const res = await fetch(`/api/products/${slug}`);
         const data = await res.json();
         if (data.product) {
-          setProduct(data.product);
+          const p = data.product;
+          setProduct(p);
           setRelated(data.related || []);
-          setSelectedSize(data.product.sizes?.[1] || data.product.sizes?.[0] || '');
-          setSelectedColor(data.product.colors?.[0] || '');
+          setSelectedSize(p.sizes?.[1] || p.sizes?.[0] || '');
+          const initialColor = p.colors?.[0] || '';
+          setSelectedColor(initialColor);
+          const initialImg = (p.color_images && p.color_images[initialColor]) || p.image_url;
+          setActiveImage(initialImg);
         }
       } catch (err) {
         console.error('Failed to load product:', err);
@@ -54,14 +60,22 @@ export default function ProductDetail({ params }) {
     load();
   }, [slug]);
 
+  const handleColorSelect = (color) => {
+    setSelectedColor(color);
+    if (product?.color_images && product.color_images[color]) {
+      setActiveImage(product.color_images[color]);
+    }
+  };
+
   const handleAddToCart = () => {
     if (!product || !selectedSize || !selectedColor) return;
     const cartPrice = saleInfo ? saleInfo.salePrice : parseFloat(product.price);
+    const cartImage = (product.color_images && product.color_images[selectedColor]) || activeImage || product.image_url;
     addItem({
       id: product.id,
       name: product.name,
       price: cartPrice,
-      image_url: product.image_url,
+      image_url: cartImage,
       slug: product.slug,
     }, selectedSize, selectedColor);
     setAdded(true);
@@ -108,8 +122,41 @@ export default function ProductDetail({ params }) {
         <div className="product-detail-grid">
           <div className="product-gallery">
             <div className="product-gallery-main">
-              <img src={product.image_url} alt={product.name} />
+              <img src={activeImage || product.image_url} alt={product.name} />
             </div>
+            {/* Color Variant Thumbnails */}
+            {product.colors && product.colors.length > 0 && product.color_images && Object.keys(product.color_images).length > 0 && (
+              <div style={{ display: 'flex', gap: '8px', marginTop: '12px', overflowX: 'auto', paddingBottom: '4px' }}>
+                {product.colors.map(color => {
+                  const img = product.color_images[color];
+                  if (!img) return null;
+                  const isSelected = selectedColor === color;
+                  return (
+                    <button
+                      key={color}
+                      type="button"
+                      onClick={() => handleColorSelect(color)}
+                      style={{
+                        width: '60px',
+                        height: '60px',
+                        borderRadius: '6px',
+                        border: isSelected ? '2px solid var(--text-primary)' : '1px solid var(--border-color)',
+                        overflow: 'hidden',
+                        padding: 0,
+                        background: '#f8fafc',
+                        cursor: 'pointer',
+                        opacity: isSelected ? 1 : 0.65,
+                        transition: 'all 0.2s ease',
+                        flexShrink: 0
+                      }}
+                      title={`View ${color}`}
+                    >
+                      <img src={img} alt={color} style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
+                    </button>
+                  );
+                })}
+              </div>
+            )}
           </div>
 
           <div className="product-detail-info">
@@ -120,8 +167,8 @@ export default function ProductDetail({ params }) {
               {saleInfo ? (
                 <>
                   <div style={{ display: 'flex', alignItems: 'center', gap: '6px', marginBottom: '6px' }}>
-                    <span style={{ background: 'linear-gradient(135deg, #ef4444, #f97316)', color: 'white', borderRadius: '6px', padding: '4px 12px', fontSize: '12px', fontWeight: '800', letterSpacing: '1px' }}>
-                      ⚡ {saleInfo.badgeText} -{saleInfo.discount}% OFF
+                    <span style={{ background: 'linear-gradient(135deg, #ef4444, #f97316)', color: 'white', borderRadius: '6px', padding: '4px 12px', fontSize: '12px', fontWeight: '800', letterSpacing: '1px', display: 'inline-flex', alignItems: 'center', gap: '4px' }}>
+                      <ZapIcon size={12} color="white" /> {saleInfo.badgeText} -{saleInfo.discount}% OFF
                     </span>
                   </div>
                   <span className="product-detail-price" style={{ color: '#ef4444' }}>{formatPrice(saleInfo.salePrice)}</span>
@@ -143,11 +190,17 @@ export default function ProductDetail({ params }) {
 
             {product.rating > 0 && (
               <div style={{ display: 'flex', alignItems: 'center', gap: '6px', marginBottom: '16px', fontSize: '13px' }}>
-                <span style={{ color: '#FFB800' }}>{'★'.repeat(Math.round(parseFloat(product.rating)))}</span>
+                <span style={{ display: 'inline-flex', alignItems: 'center', gap: '2px' }}>
+                  {[...Array(Math.min(5, Math.max(1, Math.round(parseFloat(product.rating)))))].map((_, idx) => (
+                    <StarIcon key={idx} size={14} />
+                  ))}
+                </span>
                 <span style={{ color: 'var(--text-secondary)' }}>
                   {parseFloat(product.rating).toFixed(1)} ({product.review_count} reviews)
                 </span>
-                <span style={{ color: 'var(--text-muted)' }}>| {product.review_count * 3}+ sold</span>
+                {parseInt(product.total_sold || 0) > 0 && (
+                  <span style={{ color: 'var(--text-muted)' }}>| {product.total_sold} sold</span>
+                )}
               </div>
             )}
 
@@ -158,7 +211,13 @@ export default function ProductDetail({ params }) {
                 <div className="product-option-label">Color: {selectedColor}</div>
                 <div className="product-colors">
                   {product.colors.map((color) => (
-                    <button key={color} className={`color-btn ${selectedColor === color ? 'active' : ''}`} style={{ background: colorMap[color] || color }} onClick={() => setSelectedColor(color)} title={color} />
+                    <button 
+                      key={color} 
+                      className={`color-btn ${selectedColor === color ? 'active' : ''}`} 
+                      style={{ background: colorMap[color] || color }} 
+                      onClick={() => handleColorSelect(color)} 
+                      title={color} 
+                    />
                   ))}
                 </div>
               </div>
@@ -176,41 +235,73 @@ export default function ProductDetail({ params }) {
             )}
 
             <div className="product-add-section">
-              <button className="product-add-btn" onClick={handleAddToCart}>
-                {added ? '✓ Added to Cart!' : 'Add to Cart'}
+              <button className="product-add-btn" onClick={handleAddToCart} style={{ display: 'inline-flex', alignItems: 'center', justifyContent: 'center' }}>
+                {added ? (
+                  <span style={{ display: 'inline-flex', alignItems: 'center', gap: '6px' }}>
+                    <CheckIcon size={16} /> Added to Cart!
+                  </span>
+                ) : 'Add to Cart'}
               </button>
               <button 
                 className="product-wishlist-btn" 
                 onClick={() => toggleWishlist(product)}
                 style={wishlisted ? { color: 'var(--color-sale)', borderColor: 'var(--color-sale)' } : {}}
               >
-                {wishlisted ? '♥' : '♡'}
+                <HeartIcon size={18} filled={wishlisted} />
               </button>
             </div>
 
+            {/* Dynamic Customizable Tags */}
             <div className="product-features">
-              <div className="product-feature">
-                <span className="product-feature-icon">
-                  <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><rect x="1" y="3" width="15" height="13"></rect><polygon points="16 8 20 8 23 11 23 16 16 16 16 8"></polygon><circle cx="5.5" cy="18.5" r="2.5"></circle><circle cx="18.5" cy="18.5" r="2.5"></circle></svg>
-                </span>
-                <span className="product-feature-text">Free shipping over {formatPrice(99)}</span>
-              </div>
-              <div className="product-feature">
-                <span className="product-feature-icon">
-                  <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M3 12a9 9 0 1 0 9-9 9.75 9.75 0 0 0-6.74 2.74L3 8"></path><path d="M3 3v5h5"></path></svg>
-                </span>
-                <span className="product-feature-text">30-day free returns</span>
-              </div>
-              <div className="product-feature">
-                <span className="product-feature-icon">
-                  <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M11 20A7 7 0 0 1 9.8 6.1C15.5 5 17 4.48 19 2c1 2 2 4.18 2 8 0 5.5-4.78 10-10 10Z"></path><path d="M2 21c0-3 1.85-5.36 5.08-6C9.5 14.52 12 13 13 12"></path></svg>
-                </span>
-                <span className="product-feature-text">100% premium cotton</span>
-              </div>
-              <div className="product-feature">
-                <span className="product-feature-icon">✨</span>
-                <span className="product-feature-text">Exclusive design</span>
-              </div>
+              {(product.features && product.features.length > 0 ? product.features : [
+                `Free shipping over ${formatPrice(99)}`,
+                '30-day free returns',
+                '100% premium cotton',
+                'Exclusive design'
+              ]).map((feat, idx) => {
+                const lower = feat.toLowerCase();
+                let icon = <SparklesIcon size={18} />;
+
+                if (lower.includes('ship') || lower.includes('deliver')) {
+                  icon = (
+                    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                      <rect x="1" y="3" width="15" height="13"></rect>
+                      <polygon points="16 8 20 8 23 11 23 16 16 16 16 8"></polygon>
+                      <circle cx="5.5" cy="18.5" r="2.5"></circle>
+                      <circle cx="18.5" cy="18.5" r="2.5"></circle>
+                    </svg>
+                  );
+                } else if (lower.includes('return') || lower.includes('refund')) {
+                  icon = (
+                    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                      <path d="M3 12a9 9 0 1 0 9-9 9.75 9.75 0 0 0-6.74 2.74L3 8"></path>
+                      <path d="M3 3v5h5"></path>
+                    </svg>
+                  );
+                } else if (lower.includes('cotton') || lower.includes('silk') || lower.includes('fabric') || lower.includes('material') || lower.includes('eco') || lower.includes('leather')) {
+                  icon = (
+                    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                      <path d="M11 20A7 7 0 0 1 9.8 6.1C15.5 5 17 4.48 19 2c1 2 2 4.18 2 8 0 5.5-4.78 10-10 10Z"></path>
+                      <path d="M2 21c0-3 1.85-5.36 5.08-6C9.5 14.52 12 13 13 12"></path>
+                    </svg>
+                  );
+                } else if (lower.includes('warrant') || lower.includes('guarantee') || lower.includes('authentic') || lower.includes('shield')) {
+                  icon = (
+                    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                      <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"></path>
+                    </svg>
+                  );
+                }
+
+                return (
+                  <div className="product-feature" key={idx}>
+                    <span className="product-feature-icon">
+                      {icon}
+                    </span>
+                    <span className="product-feature-text">{feat}</span>
+                  </div>
+                );
+              })}
             </div>
           </div>
         </div>
@@ -233,8 +324,8 @@ export default function ProductDetail({ params }) {
       </div>
 
       {added && (
-        <div className="toast toast-success">
-          <span className="toast-icon">✓</span>
+        <div className="toast toast-success" style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+          <span className="toast-icon"><CheckIcon size={14} /></span>
           Added to cart!
         </div>
       )}

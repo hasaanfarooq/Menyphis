@@ -6,6 +6,7 @@ import { useSiteSettings } from '@/context/SiteSettingsContext';
 import { useAuth } from '@/context/AuthContext';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
+import { TagIcon, AlertIcon, XIcon, TruckIcon } from '@/components/Icons';
 
 export default function CheckoutPage() {
   const { items, totalPrice, clearCart, isLoaded } = useCart();
@@ -49,7 +50,11 @@ export default function CheckoutPage() {
       const res = await fetch('/api/coupons/validate', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ code: couponInput.trim(), orderTotal: totalPrice }),
+        body: JSON.stringify({
+          code: couponInput.trim(),
+          orderTotal: totalPrice,
+          items: items.map(i => ({ id: i.id, price: i.price, quantity: i.quantity })),
+        }),
       });
       const data = await res.json();
       if (res.ok && data.valid) {
@@ -220,16 +225,17 @@ export default function CheckoutPage() {
                 // Applied coupon badge
                 <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', background: '#f0fdf4', border: '1px solid #bbf7d0', borderRadius: '8px', padding: '10px 14px' }}>
                   <div>
-                    <div style={{ fontSize: '13px', fontWeight: '700', color: '#16a34a' }}>
-                      🎉 {couponData.coupon.code} applied!
+                    <div style={{ fontSize: '13px', fontWeight: '700', color: '#16a34a', display: 'flex', alignItems: 'center', gap: '6px' }}>
+                      <TagIcon size={14} color="#16a34a" /> {couponData.coupon.code} applied!
                     </div>
                     <div style={{ fontSize: '12px', color: '#64748b', marginTop: '2px' }}>
                       {couponData.freeShipping ? 'Free shipping applied' : `You save ${formatPrice(couponData.discountAmount)}`}
                     </div>
                   </div>
                   <button onClick={handleRemoveCoupon}
-                    style={{ background: 'none', border: 'none', color: '#ef4444', cursor: 'pointer', fontSize: '18px', padding: '0 4px', lineHeight: 1 }}>
-                    ×
+                    aria-label="Remove coupon"
+                    style={{ background: 'none', border: 'none', color: '#ef4444', cursor: 'pointer', padding: '4px', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                    <XIcon size={14} color="#ef4444" />
                   </button>
                 </div>
               ) : (
@@ -253,7 +259,9 @@ export default function CheckoutPage() {
                 </div>
               )}
               {couponError && (
-                <div style={{ fontSize: '12px', color: '#ef4444', marginTop: '6px' }}>⚠ {couponError}</div>
+                <div style={{ fontSize: '12px', color: '#ef4444', marginTop: '6px', display: 'flex', alignItems: 'center', gap: '4px' }}>
+                  <AlertIcon size={13} color="#ef4444" /> {couponError}
+                </div>
               )}
             </div>
 
@@ -266,7 +274,11 @@ export default function CheckoutPage() {
               <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '10px', fontSize: '14px' }}>
                 <span style={{ color: 'var(--text-muted)' }}>Shipping</span>
                 <span style={{ color: freeShipping ? '#22c55e' : 'inherit' }}>
-                  {freeShipping ? 'FREE 🎉' : formatPrice(shippingCost)}
+                  {freeShipping ? (
+                    <span style={{ display: 'inline-flex', alignItems: 'center', gap: '4px' }}>
+                      FREE <TruckIcon size={14} color="#22c55e" />
+                    </span>
+                  ) : formatPrice(shippingCost)}
                 </span>
               </div>
               {taxCost > 0 && (

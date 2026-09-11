@@ -17,6 +17,7 @@ export default function Navbar() {
   const isAdminRoute = pathname?.startsWith('/admin');
 
   const categories = [
+    { name: 'Stores', href: '/stores', sale: false, isStore: true },
     { name: 'New In', href: '/shop?category=new-arrivals', sale: false },
     { name: 'Sale', href: '/shop?category=limited-edition', sale: true },
     { name: 'Shirts', href: '/shop?category=shirts', sale: false },
@@ -92,7 +93,17 @@ export default function Navbar() {
                 </button>
                 <div className="navbar-dropdown">
                   <div className="dropdown-item user-info">{user.email}</div>
-                  {user.is_admin && <Link href="/admin" className="dropdown-item admin-badge" style={{ textDecoration: 'none' }}>Admin Dashboard</Link>}
+                  {user.store_name ? (
+                    <Link href="/admin" className="dropdown-item admin-badge" style={{ textDecoration: 'none', display: 'flex', alignItems: 'center', gap: '6px' }}>
+                      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"></path><polyline points="9 22 9 12 15 12 15 22"></polyline></svg>
+                      {user.store_name}
+                    </Link>
+                  ) : (user.is_admin || user.role === 'super_admin') ? (
+                    <Link href="/admin" className="dropdown-item admin-badge" style={{ textDecoration: 'none', display: 'flex', alignItems: 'center', gap: '6px' }}>
+                      <svg width="14" height="14" viewBox="0 0 24 24" fill="currentColor"><polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"></polygon></svg>
+                      Super Admin
+                    </Link>
+                  ) : null}
                   <button onClick={logout} className="dropdown-item text-danger">Logout</button>
                 </div>
               </div>
@@ -106,7 +117,7 @@ export default function Navbar() {
               </Link>
             )}
 
-            <Link href="/wishlist" className="navbar-action-btn" title="Wishlist">
+            <Link href="/wishlist" className="navbar-action-btn hide-mobile" title="Wishlist">
               <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
                 <path d="M20.84 4.61a5.5 5.5 0 0 0-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 0 0-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 0 0 0-7.78z"/>
               </svg>
@@ -116,7 +127,7 @@ export default function Navbar() {
               )}
             </Link>
 
-            <Link href="/track" className="navbar-action-btn" title="Track Order">
+            <Link href="/track" className="navbar-action-btn hide-mobile" title="Track Order">
               <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
                 <rect x="1" y="3" width="15" height="13" rx="2" ry="2"/>
                 <path d="M16 8h4l3 3v5h-7V8z"/>
@@ -149,7 +160,11 @@ export default function Navbar() {
                   key={i}
                   href={cat.href}
                   className={`navbar-cat-link ${cat.sale ? 'sale' : ''}`}
+                  style={cat.isStore ? { display: 'inline-flex', alignItems: 'center', gap: '5px' } : undefined}
                 >
+                  {cat.isStore && (
+                    <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"></path><polyline points="9 22 9 12 15 12 15 22"></polyline></svg>
+                  )}
                   {cat.name}
                 </Link>
               ))}
@@ -163,7 +178,9 @@ export default function Navbar() {
       <div className={`mobile-nav-panel ${mobileOpen ? 'open' : ''}`}>
         <div style={{ marginBottom: '20px', fontWeight: 800, fontSize: '20px', textTransform: 'uppercase' }}>Menyphis</div>
         <Link href="/" onClick={() => setMobileOpen(false)}>Home</Link>
+        <Link href="/stores" onClick={() => setMobileOpen(false)} style={{ color: '#4f46e5', fontWeight: 600 }}>Brand Stores</Link>
         <Link href="/shop" onClick={() => setMobileOpen(false)}>Shop All</Link>
+        <Link href="/wishlist" onClick={() => setMobileOpen(false)}>Wishlist {wishlistItems?.length ? `(${wishlistItems.length})` : ''}</Link>
         <Link href="/track" onClick={() => setMobileOpen(false)}>Track Order</Link>
         <Link href="/shop?category=shirts" onClick={() => setMobileOpen(false)}>Shirts</Link>
         <Link href="/shop?category=hoodies" onClick={() => setMobileOpen(false)}>Hoodies</Link>
@@ -175,7 +192,7 @@ export default function Navbar() {
             <button onClick={() => { logout(); setMobileOpen(false); }} style={{ textAlign: 'left', background: 'none', border: 'none', padding: '15px 20px', fontSize: '18px', fontWeight: '500', color: 'red', cursor: 'pointer' }}>Logout</button>
           </>
         ) : (
-          <Link href="/auth/login" onClick={() => setMobileOpen(false)}>Account</Link>
+          <Link href="/auth/login" onClick={() => setMobileOpen(false)}>Account / Login</Link>
         )}
       </div>
     </>

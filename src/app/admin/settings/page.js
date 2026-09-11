@@ -1,5 +1,12 @@
 'use client';
 import { useState, useEffect, useCallback, useRef } from 'react';
+import {
+  StoreIcon, PaletteIcon, ShoppingBagIcon, ShareIcon, GlobeIcon,
+  BellIcon, LockIcon, FileTextIcon, SlidersIcon, CheckIcon, AlertIcon,
+  XIcon, SunIcon, MoonIcon, MonitorIcon, InstagramIcon, TwitterIcon,
+  TikTokIcon, YouTubeIcon, FacebookIcon
+} from '@/components/Icons';
+import SuperAdminGuard from '@/components/SuperAdminGuard';
 
 // ── Reusable primitives ────────────────────────────────────────────────────────
 
@@ -21,11 +28,14 @@ function Toggle({ value, onChange, id }) {
   );
 }
 
-function SettingRow({ label, hint, children, id }) {
+function SettingRow({ label, hint, children, id, icon }) {
   return (
     <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '14px 0', borderBottom: '1px solid #f1f5f9', gap: '24px', flexWrap: 'wrap' }}>
       <div style={{ flex: 1, minWidth: '200px' }}>
-        <label htmlFor={id} style={{ display: 'block', fontWeight: '600', fontSize: '14px', color: '#1e293b', cursor: 'pointer', marginBottom: hint ? '2px' : 0 }}>{label}</label>
+        <label htmlFor={id} style={{ display: 'flex', alignItems: 'center', gap: '8px', fontWeight: '600', fontSize: '14px', color: '#1e293b', cursor: 'pointer', marginBottom: hint ? '2px' : 0 }}>
+          {icon && icon}
+          {label}
+        </label>
         {hint && <div style={{ fontSize: '12px', color: '#94a3b8', lineHeight: '1.4' }}>{hint}</div>}
       </div>
       <div style={{ flexShrink: 0 }}>{children}</div>
@@ -85,30 +95,33 @@ function Toast({ message, type = 'success', onClose }) {
       animation: 'slideUp 0.3s ease',
       maxWidth: '360px',
     }}>
-      <span style={{ fontSize: '18px' }}>{type === 'success' ? '✓' : '⚠'}</span>
+      <span style={{ display: 'flex', alignItems: 'center' }}>{type === 'success' ? <CheckIcon size={18} color="white" /> : <AlertIcon size={18} color="white" />}</span>
       {message}
-      <button onClick={onClose} style={{ background: 'none', border: 'none', color: 'rgba(255,255,255,0.7)', cursor: 'pointer', fontSize: '18px', padding: 0, marginLeft: 'auto' }}>×</button>
+      <button onClick={onClose} style={{ background: 'none', border: 'none', color: 'rgba(255,255,255,0.7)', cursor: 'pointer', display: 'flex', padding: 0, marginLeft: 'auto' }}>
+        <XIcon size={16} color="white" />
+      </button>
     </div>
   );
 }
 
 // ── Main Page ──────────────────────────────────────────────────────────────────
 const SECTIONS = [
-  { key: 'general', label: 'General', icon: '🏪' },
-  { key: 'appearance', label: 'Appearance', icon: '🎨' },
-  { key: 'commerce', label: 'Commerce', icon: '🛒' },
-  { key: 'social', label: 'Social Links', icon: '🔗' },
-  { key: 'seo', label: 'SEO & Meta', icon: '🔍' },
-  { key: 'notifications', label: 'Notifications', icon: '🔔' },
-  { key: 'security', label: 'Security', icon: '🔒' },
-  { key: 'footer', label: 'Footer & Legal', icon: '📄' },
-  { key: 'advanced', label: 'Advanced', icon: '⚙️' },
+  { key: 'general', label: 'General', icon: (color) => <StoreIcon size={16} color={color} /> },
+  { key: 'appearance', label: 'Appearance & Theme', icon: (color) => <PaletteIcon size={16} color={color} /> },
+  { key: 'commerce', label: 'Commerce', icon: (color) => <ShoppingBagIcon size={16} color={color} /> },
+  { key: 'social', label: 'Social Links', icon: (color) => <ShareIcon size={16} color={color} /> },
+  { key: 'seo', label: 'SEO & Meta', icon: (color) => <GlobeIcon size={16} color={color} /> },
+  { key: 'notifications', label: 'Notifications', icon: (color) => <BellIcon size={16} color={color} /> },
+  { key: 'security', label: 'Security', icon: (color) => <LockIcon size={16} color={color} /> },
+  { key: 'footer', label: 'Footer & Legal', icon: (color) => <FileTextIcon size={16} color={color} /> },
+  { key: 'advanced', label: 'Advanced', icon: (color) => <SlidersIcon size={16} color={color} /> },
 ];
 
 export default function AdminSettingsPage() {
   const [activeSection, setActiveSection] = useState('general');
   const [settings, setSettings] = useState({});
   const [original, setOriginal] = useState({});
+  const [adminInfo, setAdminInfo] = useState(null);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [toast, setToast] = useState(null);
@@ -118,7 +131,13 @@ export default function AdminSettingsPage() {
   const fetchSettings = useCallback(async () => {
     setLoading(true);
     try {
-      const res = await fetch('/api/admin/settings');
+      const [meRes, res] = await Promise.all([
+        fetch('/api/admin/me'),
+        fetch('/api/admin/settings'),
+      ]);
+      if (meRes.ok) {
+        setAdminInfo(await meRes.json());
+      }
       if (res.ok) {
         const data = await res.json();
         setSettings(data);
@@ -211,6 +230,15 @@ export default function AdminSettingsPage() {
     );
   }
 
+  if (adminInfo && !adminInfo.isSuperAdmin) {
+    return (
+      <SuperAdminGuard
+        feature="Platform Global Settings"
+        description="Marketplace-wide settings, payment gateways, maintenance toggles, and global design options can only be adjusted by platform super administrators."
+      />
+    );
+  }
+
   return (
     <div style={{ display: 'flex', gap: '0', minHeight: '100%' }}>
       {/* ── Sidebar nav ── */}
@@ -233,7 +261,9 @@ export default function AdminSettingsPage() {
               fontSize: '13px', borderLeft: `3px solid ${activeSection === section.key ? '#1e293b' : 'transparent'}`,
               transition: 'all 0.15s',
             }}>
-            <span style={{ fontSize: '16px' }}>{section.icon}</span>
+            <span style={{ display: 'flex', alignItems: 'center' }}>
+              {section.icon(activeSection === section.key ? '#1e293b' : '#64748b')}
+            </span>
             {section.label}
           </button>
         ))}
@@ -269,7 +299,9 @@ export default function AdminSettingsPage() {
         <div id="section-general" className="admin-card">
           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '4px' }}>
             <div>
-              <h2 style={{ margin: 0, fontSize: '16px', fontWeight: '800' }}>🏪 General</h2>
+              <h2 style={{ margin: 0, fontSize: '16px', fontWeight: '800', display: 'flex', alignItems: 'center', gap: '8px' }}>
+                <StoreIcon size={18} /> General
+              </h2>
               <p style={{ margin: '2px 0 0', fontSize: '12px', color: '#94a3b8' }}>Brand identity and contact details</p>
             </div>
             <button onClick={() => handleSave(SECTION_KEYS.general)} disabled={saving}
@@ -301,7 +333,9 @@ export default function AdminSettingsPage() {
         <div id="section-appearance" className="admin-card">
           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '4px' }}>
             <div>
-              <h2 style={{ margin: 0, fontSize: '16px', fontWeight: '800' }}>🎨 Appearance</h2>
+              <h2 style={{ margin: 0, fontSize: '16px', fontWeight: '800', display: 'flex', alignItems: 'center', gap: '8px' }}>
+                <PaletteIcon size={18} /> Appearance
+              </h2>
               <p style={{ margin: '2px 0 0', fontSize: '12px', color: '#94a3b8' }}>Colors, fonts, and custom styling</p>
             </div>
             <button onClick={() => handleSave(SECTION_KEYS.appearance)} disabled={saving}
@@ -349,8 +383,16 @@ export default function AdminSettingsPage() {
             <div style={{ display: 'flex', gap: '8px' }}>
               {['light', 'dark', 'system'].map(t => (
                 <button key={t} type="button" onClick={() => set('default_theme', t)}
-                  style={{ padding: '8px 20px', borderRadius: '8px', border: `2px solid ${s('default_theme') === t ? '#1e293b' : '#e2e8f0'}`, background: s('default_theme') === t ? '#1e293b' : 'white', color: s('default_theme') === t ? 'white' : '#475569', cursor: 'pointer', fontSize: '13px', fontWeight: '600', textTransform: 'capitalize', transition: 'all 0.15s' }}>
-                  {t === 'light' ? '☀️' : t === 'dark' ? '🌙' : '💻'} {t}
+                  style={{
+                    padding: '8px 20px', borderRadius: '8px',
+                    border: `2px solid ${s('default_theme') === t ? '#1e293b' : '#e2e8f0'}`,
+                    background: s('default_theme') === t ? '#1e293b' : 'white',
+                    color: s('default_theme') === t ? 'white' : '#475569',
+                    cursor: 'pointer', fontSize: '13px', fontWeight: '600',
+                    textTransform: 'capitalize', transition: 'all 0.15s',
+                    display: 'inline-flex', alignItems: 'center', gap: '6px',
+                  }}>
+                  {t === 'light' ? <SunIcon size={14} /> : t === 'dark' ? <MoonIcon size={14} /> : <MonitorIcon size={14} />} {t}
                 </button>
               ))}
             </div>
@@ -366,7 +408,9 @@ export default function AdminSettingsPage() {
         <div id="section-commerce" className="admin-card">
           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '4px' }}>
             <div>
-              <h2 style={{ margin: 0, fontSize: '16px', fontWeight: '800' }}>🛒 Commerce</h2>
+              <h2 style={{ margin: 0, fontSize: '16px', fontWeight: '800', display: 'flex', alignItems: 'center', gap: '8px' }}>
+                <ShoppingBagIcon size={18} /> Commerce
+              </h2>
               <p style={{ margin: '2px 0 0', fontSize: '12px', color: '#94a3b8' }}>Currency, shipping, and checkout rules</p>
             </div>
             <button onClick={() => handleSave(SECTION_KEYS.commerce)} disabled={saving}
@@ -377,14 +421,14 @@ export default function AdminSettingsPage() {
           <SettingRow label="Default Currency" id="currency_default">
             <SSelect id="currency_default" value={s('currency_default', 'USD')} onChange={v => set('currency_default', v)}
               options={[
-                { value: 'USD', label: '🇺🇸 USD — US Dollar' },
-                { value: 'PKR', label: '🇵🇰 PKR — Pakistani Rupee' },
-                { value: 'EUR', label: '🇪🇺 EUR — Euro' },
-                { value: 'GBP', label: '🇬🇧 GBP — British Pound' },
-                { value: 'AED', label: '🇦🇪 AED — UAE Dirham' },
-                { value: 'SAR', label: '🇸🇦 SAR — Saudi Riyal' },
-                { value: 'CAD', label: '🇨🇦 CAD — Canadian Dollar' },
-                { value: 'AUD', label: '🇦🇺 AUD — Australian Dollar' },
+                { value: 'USD', label: 'USD — US Dollar' },
+                { value: 'PKR', label: 'PKR — Pakistani Rupee' },
+                { value: 'EUR', label: 'EUR — Euro' },
+                { value: 'GBP', label: 'GBP — British Pound' },
+                { value: 'AED', label: 'AED — UAE Dirham' },
+                { value: 'SAR', label: 'SAR — Saudi Riyal' },
+                { value: 'CAD', label: 'CAD — Canadian Dollar' },
+                { value: 'AUD', label: 'AUD — Australian Dollar' },
               ]} />
           </SettingRow>
           <SettingRow label="Free Shipping Threshold" hint="Orders above this amount get free shipping (0 = always free)" id="free_shipping_threshold">
@@ -417,7 +461,9 @@ export default function AdminSettingsPage() {
         <div id="section-social" className="admin-card">
           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '4px' }}>
             <div>
-              <h2 style={{ margin: 0, fontSize: '16px', fontWeight: '800' }}>🔗 Social Links</h2>
+              <h2 style={{ margin: 0, fontSize: '16px', fontWeight: '800', display: 'flex', alignItems: 'center', gap: '8px' }}>
+                <ShareIcon size={18} /> Social Links
+              </h2>
               <p style={{ margin: '2px 0 0', fontSize: '12px', color: '#94a3b8' }}>Used in footer and sharing</p>
             </div>
             <button onClick={() => handleSave(SECTION_KEYS.social)} disabled={saving}
@@ -426,13 +472,13 @@ export default function AdminSettingsPage() {
             </button>
           </div>
           {[
-            { key: 'social_instagram', label: '📸 Instagram', placeholder: 'https://instagram.com/yourstore' },
-            { key: 'social_twitter', label: '🐦 Twitter / X', placeholder: 'https://twitter.com/yourstore' },
-            { key: 'social_tiktok', label: '🎵 TikTok', placeholder: 'https://tiktok.com/@yourstore' },
-            { key: 'social_youtube', label: '▶️ YouTube', placeholder: 'https://youtube.com/@yourstore' },
-            { key: 'social_facebook', label: '👤 Facebook', placeholder: 'https://facebook.com/yourstore' },
-          ].map(({ key, label, placeholder }) => (
-            <SettingRow key={key} label={label} id={key}>
+            { key: 'social_instagram', label: 'Instagram', icon: <InstagramIcon size={16} />, placeholder: 'https://instagram.com/yourstore' },
+            { key: 'social_twitter', label: 'Twitter / X', icon: <TwitterIcon size={16} />, placeholder: 'https://twitter.com/yourstore' },
+            { key: 'social_tiktok', label: 'TikTok', icon: <TikTokIcon size={16} />, placeholder: 'https://tiktok.com/@yourstore' },
+            { key: 'social_youtube', label: 'YouTube', icon: <YouTubeIcon size={16} />, placeholder: 'https://youtube.com/@yourstore' },
+            { key: 'social_facebook', label: 'Facebook', icon: <FacebookIcon size={16} />, placeholder: 'https://facebook.com/yourstore' },
+          ].map(({ key, label, icon, placeholder }) => (
+            <SettingRow key={key} label={label} id={key} icon={icon}>
               <SInput id={key} type="url" value={s(key)} onChange={v => set(key, v)} placeholder={placeholder} />
             </SettingRow>
           ))}
@@ -442,7 +488,9 @@ export default function AdminSettingsPage() {
         <div id="section-seo" className="admin-card">
           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '4px' }}>
             <div>
-              <h2 style={{ margin: 0, fontSize: '16px', fontWeight: '800' }}>🔍 SEO & Meta</h2>
+              <h2 style={{ margin: 0, fontSize: '16px', fontWeight: '800', display: 'flex', alignItems: 'center', gap: '8px' }}>
+                <GlobeIcon size={18} /> SEO & Meta
+              </h2>
               <p style={{ margin: '2px 0 0', fontSize: '12px', color: '#94a3b8' }}>How your store appears in search engines</p>
             </div>
             <button onClick={() => handleSave(SECTION_KEYS.seo)} disabled={saving}
@@ -488,7 +536,9 @@ export default function AdminSettingsPage() {
         <div id="section-notifications" className="admin-card">
           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '4px' }}>
             <div>
-              <h2 style={{ margin: 0, fontSize: '16px', fontWeight: '800' }}>🔔 Notifications</h2>
+              <h2 style={{ margin: 0, fontSize: '16px', fontWeight: '800', display: 'flex', alignItems: 'center', gap: '8px' }}>
+                <BellIcon size={18} /> Notifications
+              </h2>
               <p style={{ margin: '2px 0 0', fontSize: '12px', color: '#94a3b8' }}>Admin email alert preferences</p>
             </div>
             <button onClick={() => handleSave(SECTION_KEYS.notifications)} disabled={saving}
@@ -514,7 +564,9 @@ export default function AdminSettingsPage() {
         <div id="section-security" className="admin-card">
           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '4px' }}>
             <div>
-              <h2 style={{ margin: 0, fontSize: '16px', fontWeight: '800' }}>🔒 Security</h2>
+              <h2 style={{ margin: 0, fontSize: '16px', fontWeight: '800', display: 'flex', alignItems: 'center', gap: '8px' }}>
+                <LockIcon size={18} /> Security
+              </h2>
               <p style={{ margin: '2px 0 0', fontSize: '12px', color: '#94a3b8' }}>Access control and store availability</p>
             </div>
             <button onClick={() => handleSave(SECTION_KEYS.security)} disabled={saving}
@@ -527,8 +579,8 @@ export default function AdminSettingsPage() {
             <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
               <Toggle id="maintenance_mode" value={s('maintenance_mode', false)} onChange={v => set('maintenance_mode', v)} />
               {s('maintenance_mode') && (
-                <span style={{ background: '#fef2f2', color: '#ef4444', padding: '3px 10px', borderRadius: '6px', fontSize: '12px', fontWeight: '700' }}>
-                  ⚠ Store is offline
+                <span style={{ background: '#fef2f2', color: '#ef4444', padding: '3px 10px', borderRadius: '6px', fontSize: '12px', fontWeight: '700', display: 'inline-flex', alignItems: 'center', gap: '5px' }}>
+                  <AlertIcon size={13} color="#ef4444" /> Store is offline
                 </span>
               )}
             </div>
@@ -547,7 +599,9 @@ export default function AdminSettingsPage() {
         <div id="section-footer" className="admin-card">
           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '4px' }}>
             <div>
-              <h2 style={{ margin: 0, fontSize: '16px', fontWeight: '800' }}>📄 Footer & Legal</h2>
+              <h2 style={{ margin: 0, fontSize: '16px', fontWeight: '800', display: 'flex', alignItems: 'center', gap: '8px' }}>
+                <FileTextIcon size={18} /> Footer & Legal
+              </h2>
               <p style={{ margin: '2px 0 0', fontSize: '12px', color: '#94a3b8' }}>Footer text and legal page links</p>
             </div>
             <button onClick={() => handleSave(SECTION_KEYS.footer)} disabled={saving}
@@ -575,7 +629,9 @@ export default function AdminSettingsPage() {
         {/* ══ ADVANCED ═════════════════════════════════════════════════ */}
         <div id="section-advanced" className="admin-card">
           <div style={{ marginBottom: '16px' }}>
-            <h2 style={{ margin: 0, fontSize: '16px', fontWeight: '800' }}>⚙️ Advanced</h2>
+            <h2 style={{ margin: 0, fontSize: '16px', fontWeight: '800', display: 'flex', alignItems: 'center', gap: '8px' }}>
+              <SlidersIcon size={18} /> Advanced
+            </h2>
             <p style={{ margin: '2px 0 0', fontSize: '12px', color: '#94a3b8' }}>Danger zone and system controls</p>
           </div>
 
@@ -589,7 +645,7 @@ export default function AdminSettingsPage() {
               const a = document.createElement('a'); a.href = url; a.download = 'menyphis-settings.json'; a.click();
               URL.revokeObjectURL(url);
             }} style={{ padding: '8px 20px', background: '#1e293b', color: 'white', border: 'none', borderRadius: '8px', cursor: 'pointer', fontSize: '13px', fontWeight: '600' }}>
-              ↓ Export JSON
+              Export JSON
             </button>
           </div>
 
@@ -603,7 +659,9 @@ export default function AdminSettingsPage() {
 
           {/* Danger zone */}
           <div style={{ border: '1px solid #fecaca', borderRadius: '10px', padding: '16px', background: '#fff8f8' }}>
-            <div style={{ fontWeight: '700', fontSize: '14px', color: '#ef4444', marginBottom: '4px' }}>⚠ Danger Zone</div>
+            <div style={{ fontWeight: '700', fontSize: '14px', color: '#ef4444', marginBottom: '4px', display: 'flex', alignItems: 'center', gap: '6px' }}>
+              <AlertIcon size={16} color="#ef4444" /> Danger Zone
+            </div>
             <div style={{ fontSize: '13px', color: '#64748b', marginBottom: '12px' }}>These actions are irreversible. Proceed with extreme caution.</div>
             <div style={{ display: 'flex', gap: '10px', flexWrap: 'wrap' }}>
               <button type="button" onClick={() => { if (confirm('Reset ALL settings to defaults? This cannot be undone.')) { fetchSettings(); setToast({ message: 'Settings reloaded from database', type: 'success' }); } }}

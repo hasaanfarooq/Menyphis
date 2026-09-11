@@ -1,6 +1,7 @@
 'use client';
 import { useState, useEffect, useCallback } from 'react';
 import { useAuth } from '@/context/AuthContext';
+import { StarIcon, CheckCircleIcon, EditIcon } from '@/components/Icons';
 
 function StarInput({ value, onChange }) {
   const [hovered, setHovered] = useState(0);
@@ -14,13 +15,15 @@ function StarInput({ value, onChange }) {
           onMouseLeave={() => setHovered(0)}
           onClick={() => onChange(n)}
           style={{
-            fontSize: '28px',
-            color: n <= display ? '#FFB800' : '#d1d5db',
-            transition: 'color 0.1s, transform 0.1s',
+            display: 'inline-flex',
+            padding: '2px',
+            transition: 'transform 0.1s',
             transform: n <= display ? 'scale(1.15)' : 'scale(1)',
             userSelect: 'none',
           }}
-        >★</span>
+        >
+          <StarIcon size={24} filled={n <= display} color={n <= display ? '#FFB800' : '#d1d5db'} />
+        </span>
       ))}
     </div>
   );
@@ -30,7 +33,9 @@ function RatingBar({ label, count, total }) {
   const pct = total > 0 ? (count / total) * 100 : 0;
   return (
     <div style={{ display: 'flex', alignItems: 'center', gap: '10px', marginBottom: '6px' }}>
-      <span style={{ fontSize: '12px', color: '#64748b', width: '30px', textAlign: 'right', flexShrink: 0 }}>{label}★</span>
+      <span style={{ fontSize: '12px', color: '#64748b', width: '30px', textAlign: 'right', flexShrink: 0, display: 'inline-flex', alignItems: 'center', justifyContent: 'flex-end', gap: '2px' }}>
+        {label}<StarIcon size={11} color="#FFB800" />
+      </span>
       <div style={{ flex: 1, background: '#f1f5f9', borderRadius: '999px', height: '8px', overflow: 'hidden' }}>
         <div style={{ height: '100%', width: `${pct}%`, background: 'linear-gradient(90deg, #FFB800, #FF8C00)', borderRadius: '999px', transition: 'width 0.6s ease' }} />
       </div>
@@ -127,8 +132,10 @@ export default function ProductReviews({ productId }) {
             <div style={{ fontSize: '56px', fontWeight: '800', lineHeight: 1, color: 'var(--text-primary)' }}>
               {average.toFixed(1)}
             </div>
-            <div style={{ color: '#FFB800', fontSize: '22px', margin: '4px 0' }}>
-              {'★'.repeat(Math.round(average))}{'☆'.repeat(5 - Math.round(average))}
+            <div style={{ color: '#FFB800', display: 'flex', justifyContent: 'center', gap: '2px', margin: '6px 0' }}>
+              {[1, 2, 3, 4, 5].map(n => (
+                <StarIcon key={n} size={20} filled={n <= Math.round(average)} />
+              ))}
             </div>
             <div style={{ fontSize: '13px', color: '#94a3b8' }}>{total} review{total !== 1 ? 's' : ''}</div>
           </div>
@@ -143,8 +150,8 @@ export default function ProductReviews({ productId }) {
 
       {/* Submit review CTA */}
       {submitSuccess && (
-        <div style={{ background: '#f0fdf4', border: '1px solid #bbf7d0', color: '#16a34a', borderRadius: '10px', padding: '14px 20px', marginBottom: '20px', fontWeight: '600' }}>
-          ✓ Your review has been submitted successfully!
+        <div style={{ background: '#f0fdf4', border: '1px solid #bbf7d0', color: '#16a34a', borderRadius: '10px', padding: '14px 20px', marginBottom: '20px', fontWeight: '600', display: 'flex', alignItems: 'center', gap: '8px' }}>
+          <CheckCircleIcon size={18} color="#16a34a" /> Your review has been submitted successfully!
         </div>
       )}
 
@@ -160,11 +167,12 @@ export default function ProductReviews({ productId }) {
                   fontWeight: '600', fontSize: '15px',
                   boxShadow: '0 4px 12px rgba(0,0,0,0.15)',
                   transition: 'transform 0.2s, box-shadow 0.2s',
+                  display: 'inline-flex', alignItems: 'center', gap: '8px',
                 }}
                 onMouseEnter={e => { e.currentTarget.style.transform = 'translateY(-1px)'; e.currentTarget.style.boxShadow = '0 6px 16px rgba(0,0,0,0.2)'; }}
                 onMouseLeave={e => { e.currentTarget.style.transform = 'translateY(0)'; e.currentTarget.style.boxShadow = '0 4px 12px rgba(0,0,0,0.15)'; }}
               >
-                ✍️ Write a Review
+                <EditIcon size={16} color="white" /> Write a Review
               </button>
             ) : (
               <p style={{ color: '#64748b', fontSize: '14px', fontStyle: 'italic' }}>You have already reviewed this product.</p>
@@ -268,7 +276,9 @@ export default function ProductReviews({ productId }) {
         </div>
       ) : reviews.length === 0 ? (
         <div style={{ textAlign: 'center', padding: '48px 20px', background: 'var(--bg-secondary)', borderRadius: '16px' }}>
-          <div style={{ fontSize: '48px', marginBottom: '12px' }}>⭐</div>
+          <div style={{ display: 'flex', justifyContent: 'center', marginBottom: '12px' }}>
+            <StarIcon size={44} filled={false} color="#94a3b8" />
+          </div>
           <h3 style={{ fontSize: '18px', fontWeight: '600', marginBottom: '8px' }}>No reviews yet</h3>
           <p style={{ color: '#64748b', fontSize: '14px' }}>Be the first to review this product!</p>
         </div>
@@ -295,8 +305,10 @@ export default function ProductReviews({ productId }) {
 
                   {/* Stars */}
                   <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '8px' }}>
-                    <span style={{ color: '#FFB800', fontSize: '16px', letterSpacing: '2px' }}>
-                      {'★'.repeat(review.rating)}{'☆'.repeat(5 - review.rating)}
+                    <span style={{ display: 'inline-flex', gap: '2px' }}>
+                      {[1, 2, 3, 4, 5].map(n => (
+                        <StarIcon key={n} size={15} filled={n <= review.rating} />
+                      ))}
                     </span>
                     <span style={{ fontSize: '13px', fontWeight: '700', color: '#475569' }}>{review.rating}/5</span>
                   </div>

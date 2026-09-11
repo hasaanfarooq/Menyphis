@@ -1,5 +1,7 @@
 'use client';
 import { useState, useEffect, useCallback } from 'react';
+import { ZapIcon, EditIcon, XIcon } from '@/components/Icons';
+import SuperAdminGuard from '@/components/SuperAdminGuard';
 
 const statusBadge = (sale) => {
   const now = new Date();
@@ -19,25 +21,31 @@ const toLocalDatetimeValue = (isoString) => {
 export default function AdminFlashSalesPage() {
   const [sales, setSales] = useState([]);
   const [allProducts, setAllProducts] = useState([]);
+  const [stores, setStores] = useState([]);
+  const [adminInfo, setAdminInfo] = useState(null);
   const [loading, setLoading] = useState(true);
   const [showModal, setShowModal] = useState(false);
   const [editingId, setEditingId] = useState(null);
   const [submitting, setSubmitting] = useState(false);
   const [productSearch, setProductSearch] = useState('');
   const [formData, setFormData] = useState({
-    title: '', subtitle: '', discount_percent: 20, badge_text: 'FLASH SALE',
-    starts_at: '', ends_at: '', is_active: false, product_ids: []
+    title: '', subtitle: '', discount_percent: 20, badge_text: 'SALE',
+    starts_at: '', ends_at: '', is_active: false, product_ids: [], store_id: ''
   });
 
   const fetchData = useCallback(async () => {
     setLoading(true);
     try {
-      const [salesRes, productsRes] = await Promise.all([
+      const [meRes, salesRes, productsRes, storesRes] = await Promise.all([
+        fetch('/api/admin/me'),
         fetch('/api/admin/flash-sales'),
-        fetch('/api/admin/products')
+        fetch('/api/admin/products'),
+        fetch('/api/admin/stores')
       ]);
+      if (meRes.ok) setAdminInfo(await meRes.json());
       if (salesRes.ok) setSales(await salesRes.json());
       if (productsRes.ok) setAllProducts(await productsRes.json());
+      if (storesRes.ok) setStores(await storesRes.json());
     } catch (err) {
       console.error('Failed to fetch:', err);
     }
@@ -45,6 +53,9 @@ export default function AdminFlashSalesPage() {
   }, []);
 
   useEffect(() => { fetchData(); }, [fetchData]);
+
+  const isStoreAdmin = !!adminInfo?.isStoreAdmin;
+  const isSuperAdmin = !isStoreAdmin;
 
   const handleOpenModal = async (sale = null) => {
     if (sale) {
@@ -57,25 +68,30 @@ export default function AdminFlashSalesPage() {
           title: data.title,
           subtitle: data.subtitle || '',
           discount_percent: data.discount_percent,
-          badge_text: data.badge_text || 'FLASH SALE',
+          badge_text: data.badge_text || 'SALE',
           starts_at: toLocalDatetimeValue(data.starts_at),
           ends_at: toLocalDatetimeValue(data.ends_at),
           is_active: data.is_active,
+          store_id: data.store_id ? data.store_id.toString() : '',
           product_ids: (data.products || []).map(p => ({
             product_id: p.id,
-            custom_discount_percent: p.custom_discount_percent || ''
+            custom_discount_percent: p.custom_discount_percent || null
           }))
         });
       }
     } else {
       setEditingId(null);
-      const now = new Date();
-      const tomorrow = new Date(now.getTime() + 24 * 60 * 60 * 1000);
+      const defaultEnds = new Date(Date.now() + 2 * 24 * 60 * 60 * 1000);
       setFormData({
-        title: '', subtitle: '', discount_percent: 20, badge_text: 'FLASH SALE',
-        starts_at: toLocalDatetimeValue(now.toISOString()),
-        ends_at: toLocalDatetimeValue(tomorrow.toISOString()),
-        is_active: false, product_ids: []
+        title: '',
+        subtitle: '',
+        discount_percent: 20,
+        badge_text: 'SALE',
+        starts_at: toLocalDatetimeValue(new Date().toISOString()),
+        ends_at: toLocalDatetimeValue(defaultEnds.toISOString()),
+        is_active: true,
+        store_id: isStoreAdmin && adminInfo?.storeId ? adminInfo.storeId.toString() : '',
+        product_ids: []
       });
     }
     setProductSearch('');
@@ -87,22 +103,31 @@ export default function AdminFlashSalesPage() {
     setEditingId(null);
   };
 
-  const toggleProduct = (productId) => {
-    const exists = formData.product_ids.find(p => p.product_id === productId);
+  const handleProductToggle = (productId) => {
+    const exists = formData.product_ids.some(p => p.product_id === productId);
     if (exists) {
-      setFormData(prev => ({ ...prev, product_ids: prev.product_ids.filter(p => p.product_id !== productId) }));
+      setFormData({
+        ...formData,
+        product_ids: formData.product_ids.filter(p => p.product_id !== productId)
+      });
     } else {
-      setFormData(prev => ({ ...prev, product_ids: [...prev.product_ids, { product_id: productId, custom_discount_percent: '' }] }));
+      setFormData({
+        ...formData,
+        product_ids: [...formData.product_ids, { product_id: productId, custom_discount_percent: null }]
+      });
     }
   };
 
-  const updateProductDiscount = (productId, value) => {
-    setFormData(prev => ({
-      ...prev,
-      product_ids: prev.product_ids.map(p =>
-        p.product_id === productId ? { ...p, custom_discount_percent: value } : p
-      )
-    }));
+  const handleCustomDiscountChange = (productId, val) => {
+    setFormData({
+      ...formData,
+      product_ids: formData.product_ids.map(p => {
+        if (p.product_id === productId) {
+          return { ...p, custom_discount_percent: val ? parseInt(val) : null };
+        }
+        return p;
+      })
+    });
   };
 
   const handleSubmit = async (e) => {
@@ -118,6 +143,7 @@ export default function AdminFlashSalesPage() {
       discount_percent: parseInt(formData.discount_percent),
       starts_at: formData.starts_at ? new Date(formData.starts_at).toISOString() : new Date().toISOString(),
       ends_at: new Date(formData.ends_at).toISOString(),
+      store_id: isStoreAdmin ? adminInfo.storeId : (formData.store_id ? parseInt(formData.store_id) : null),
       product_ids: formData.product_ids.map(p => ({
         product_id: p.product_id,
         custom_discount_percent: p.custom_discount_percent ? parseInt(p.custom_discount_percent) : null
@@ -145,7 +171,7 @@ export default function AdminFlashSalesPage() {
   };
 
   const handleDelete = async (id) => {
-    if (!confirm('Delete this flash sale? This cannot be undone.')) return;
+    if (!confirm('Delete this sale? This cannot be undone.')) return;
     const res = await fetch(`/api/admin/flash-sales/${id}`, { method: 'DELETE' });
     if (res.ok) fetchData();
   };
@@ -160,7 +186,11 @@ export default function AdminFlashSalesPage() {
     if (res.ok) fetchData();
   };
 
-  const filteredProducts = allProducts.filter(p =>
+  const candidateProducts = isSuperAdmin && formData.store_id
+    ? allProducts.filter(p => p.store_id === parseInt(formData.store_id))
+    : allProducts;
+
+  const filteredProducts = candidateProducts.filter(p =>
     p.name.toLowerCase().includes(productSearch.toLowerCase())
   );
 
@@ -168,16 +198,22 @@ export default function AdminFlashSalesPage() {
 
   return (
     <div>
-      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '24px' }}>
+      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '24px', flexWrap: 'wrap', gap: '16px' }}>
         <div>
-          <h1 className="admin-page-title" style={{ marginBottom: '4px' }}>Flash Sales</h1>
-          <p style={{ color: '#64748b', fontSize: '14px' }}>Create time-limited sales with custom discounts and product selections.</p>
+          <h1 className="admin-page-title" style={{ marginBottom: '4px' }}>
+            {isStoreAdmin ? 'Store Sales & Promotions' : 'Flash Sales & Promotions'}
+          </h1>
+          <p style={{ color: '#64748b', fontSize: '14px', margin: 0 }}>
+            {isStoreAdmin
+              ? `Create time-limited sales and promotional discounts for ${adminInfo?.storeName || 'your store'}.`
+              : 'Create sitewide flash sales with countdown timers or manage vendor store sales.'}
+          </p>
         </div>
         <button
           onClick={() => handleOpenModal()}
           style={{ padding: '10px 24px', background: '#1e293b', color: 'white', borderRadius: '6px', border: 'none', cursor: 'pointer', fontWeight: '600', fontSize: '14px', whiteSpace: 'nowrap' }}
         >
-          + Create Flash Sale
+          + Create Sale Event
         </button>
       </div>
 
@@ -186,11 +222,15 @@ export default function AdminFlashSalesPage() {
           <div style={{ padding: '48px', textAlign: 'center', color: '#64748b' }}>Loading...</div>
         ) : sales.length === 0 ? (
           <div style={{ padding: '64px', textAlign: 'center' }}>
-            <div style={{ fontSize: '48px', marginBottom: '12px' }}>⚡</div>
-            <div style={{ fontSize: '18px', fontWeight: '600', marginBottom: '8px' }}>No Flash Sales Yet</div>
-            <div style={{ color: '#64748b', marginBottom: '24px' }}>Create your first flash sale to boost conversions.</div>
+            <div style={{ display: 'flex', justifyContent: 'center', marginBottom: '12px', color: '#94a3b8' }}>
+              <ZapIcon size={48} />
+            </div>
+            <div style={{ fontSize: '18px', fontWeight: '600', marginBottom: '8px' }}>
+              {isStoreAdmin ? 'No Store Sales Running' : 'No Sales Created Yet'}
+            </div>
+            <div style={{ color: '#64748b', marginBottom: '24px' }}>Create a sale event to drive customer purchases.</div>
             <button onClick={() => handleOpenModal()} style={{ padding: '10px 24px', background: '#1e293b', color: 'white', borderRadius: '6px', border: 'none', cursor: 'pointer', fontWeight: '600' }}>
-              Create Flash Sale
+              Create Sale Event
             </button>
           </div>
         ) : (
@@ -199,6 +239,7 @@ export default function AdminFlashSalesPage() {
               <thead>
                 <tr>
                   <th>Sale</th>
+                  {isSuperAdmin && <th>Scope / Store</th>}
                   <th>Discount</th>
                   <th>Products</th>
                   <th>End Time</th>
@@ -216,6 +257,19 @@ export default function AdminFlashSalesPage() {
                         {sale.subtitle && <div style={{ fontSize: '12px', color: '#64748b' }}>{sale.subtitle}</div>}
                         <div style={{ fontSize: '11px', color: '#94a3b8', marginTop: '2px' }}>Badge: {sale.badge_text}</div>
                       </td>
+                      {isSuperAdmin && (
+                        <td>
+                          {sale.store_name ? (
+                            <span style={{ fontSize: '12px', fontWeight: '600', color: '#1e40af', background: '#eff6ff', padding: '3px 8px', borderRadius: '4px' }}>
+                              {sale.store_name}
+                            </span>
+                          ) : (
+                            <span style={{ fontSize: '12px', fontWeight: '600', color: '#475569', background: '#f1f5f9', padding: '3px 8px', borderRadius: '4px' }}>
+                              Sitewide
+                            </span>
+                          )}
+                        </td>
+                      )}
                       <td>
                         <span style={{ fontSize: '22px', fontWeight: '700', color: '#ef4444' }}>{sale.discount_percent}%</span>
                         <div style={{ fontSize: '11px', color: '#64748b' }}>off</div>
@@ -256,11 +310,39 @@ export default function AdminFlashSalesPage() {
         <div className="admin-modal-overlay">
           <div className="admin-modal" style={{ maxWidth: '780px', width: '95vw', maxHeight: '90vh', overflowY: 'auto' }}>
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '20px' }}>
-              <h2 style={{ margin: 0 }}>{editingId ? '✏️ Edit Flash Sale' : '⚡ Create Flash Sale'}</h2>
-              <button onClick={handleCloseModal} style={{ background: 'none', border: 'none', fontSize: '24px', cursor: 'pointer', color: '#64748b' }}>×</button>
+              <h2 style={{ margin: 0, display: 'flex', alignItems: 'center', gap: '8px' }}>
+                {editingId ? <><EditIcon size={20} /> Edit Flash Sale</> : <><ZapIcon size={20} /> Create Flash Sale</>}
+              </h2>
+              <button onClick={handleCloseModal} style={{ background: 'none', border: 'none', cursor: 'pointer', color: '#64748b', display: 'flex', alignItems: 'center', padding: '4px' }} aria-label="Close">
+                <XIcon size={20} />
+              </button>
             </div>
 
             <form onSubmit={handleSubmit} className="admin-form">
+              {/* Store Scope */}
+              {isSuperAdmin ? (
+                <div style={{ background: '#f8fafc', borderRadius: '8px', padding: '16px', marginBottom: '16px' }}>
+                  <h3 style={{ margin: '0 0 8px', fontSize: '13px', fontWeight: '700', color: '#475569', textTransform: 'uppercase', letterSpacing: '0.5px' }}>Store Scope</h3>
+                  <select
+                    value={formData.store_id || ''}
+                    onChange={e => setFormData({ ...formData, store_id: e.target.value, product_ids: [] })}
+                    className="form-input"
+                    style={{ margin: 0, width: '100%' }}
+                  >
+                    <option value="">Marketplace Sitewide (Platform-Wide)</option>
+                    {stores.map(s => (
+                      <option key={s.id} value={s.id.toString()}>{s.name} (Store #{s.id})</option>
+                    ))}
+                  </select>
+                </div>
+              ) : (
+                <div style={{ background: '#eff6ff', borderRadius: '8px', padding: '12px 16px', marginBottom: '16px', border: '1px solid #bfdbfe' }}>
+                  <div style={{ fontSize: '12px', color: '#1e40af', fontWeight: 600 }}>
+                    This promotion will run specifically for <strong>{adminInfo?.storeName}</strong> products.
+                  </div>
+                </div>
+              )}
+
               {/* Basic Info */}
               <div style={{ background: '#f8fafc', borderRadius: '8px', padding: '16px', marginBottom: '16px' }}>
                 <h3 style={{ margin: '0 0 12px', fontSize: '14px', fontWeight: '600', color: '#475569' }}>SALE DETAILS</h3>

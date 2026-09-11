@@ -83,14 +83,15 @@ export default function HeroCarousel() {
       <div style={{
         position: 'absolute', inset: 0, display: 'flex', flexDirection: 'column',
         justifyContent: 'center', alignItems: textAlignMap[textAlign] || 'flex-start',
-        padding: 'clamp(24px, 6vw, 80px)', textAlign: textAlign,
+        padding: 'clamp(18px, 4vw, 80px)', textAlign: textAlign,
+        maxWidth: '100%', boxSizing: 'border-box'
       }}>
         {slide.badge_text && (
           <div key={`badge-${current}`} style={{
             display: 'inline-block', background: 'rgba(255,255,255,0.15)', backdropFilter: 'blur(10px)',
             color: slide.text_color || '#fff', padding: '6px 16px', borderRadius: '999px',
-            fontSize: '13px', fontWeight: '700', letterSpacing: '1.5px', textTransform: 'uppercase',
-            marginBottom: '16px', border: '1px solid rgba(255,255,255,0.25)',
+            fontSize: '12px', fontWeight: '700', letterSpacing: '1.2px', textTransform: 'uppercase',
+            marginBottom: '12px', border: '1px solid rgba(255,255,255,0.25)',
             animation: 'slideDown 0.6s ease forwards',
           }}>
             {slide.badge_text}
@@ -99,9 +100,10 @@ export default function HeroCarousel() {
         {slide.title && (
           <h1 key={`title-${current}`} style={{
             color: slide.text_color || '#ffffff',
-            fontSize: 'clamp(32px, 5vw, 72px)',
+            fontSize: 'clamp(26px, 5vw, 68px)',
             fontWeight: '900', lineHeight: '1.1',
-            margin: '0 0 16px', maxWidth: '700px',
+            margin: '0 0 12px', maxWidth: '700px',
+            wordBreak: 'break-word',
             textShadow: '0 2px 20px rgba(0,0,0,0.3)',
             animation: 'slideUp 0.6s ease 0.1s both',
           }}>
@@ -111,8 +113,9 @@ export default function HeroCarousel() {
         {slide.subtitle && (
           <p key={`sub-${current}`} style={{
             color: slide.text_color || '#ffffff', opacity: 0.85,
-            fontSize: 'clamp(14px, 2vw, 20px)', maxWidth: '560px',
-            lineHeight: '1.6', margin: '0 0 32px',
+            fontSize: 'clamp(13px, 2vw, 18px)', maxWidth: '560px',
+            lineHeight: '1.5', margin: '0 0 24px',
+            wordBreak: 'break-word',
             animation: 'slideUp 0.6s ease 0.2s both',
           }}>
             {slide.subtitle}
@@ -120,15 +123,15 @@ export default function HeroCarousel() {
         )}
         {(slide.cta_text || slide.cta_secondary_text) && (
           <div key={`ctas-${current}`} style={{
-            display: 'flex', gap: '12px', flexWrap: 'wrap',
+            display: 'flex', gap: '10px', flexWrap: 'wrap',
             justifyContent: textAlignMap[textAlign] || 'flex-start',
             animation: 'slideUp 0.6s ease 0.3s both',
           }}>
             {slide.cta_text && slide.cta_link && (
               <Link href={slide.cta_link} style={{
-                padding: '14px 32px', background: slide.text_color || '#ffffff',
+                padding: '12px 24px', background: slide.text_color || '#ffffff',
                 color: '#1e293b', borderRadius: '8px', fontWeight: '800',
-                fontSize: '15px', textDecoration: 'none', display: 'inline-block',
+                fontSize: '14px', textDecoration: 'none', display: 'inline-block',
                 boxShadow: '0 4px 20px rgba(0,0,0,0.3)',
                 transition: 'transform 0.2s, box-shadow 0.2s',
               }}
@@ -139,9 +142,10 @@ export default function HeroCarousel() {
             )}
             {slide.cta_secondary_text && slide.cta_secondary_link && (
               <Link href={slide.cta_secondary_link} style={{
-                padding: '14px 32px', background: 'transparent',
-                color: slide.text_color || '#ffffff', borderRadius: '8px', fontWeight: '700',
-                fontSize: '15px', textDecoration: 'none', display: 'inline-block',
+                padding: '12px 24px', background: 'transparent',
+                color: slide.text_color || '#ffffff', borderRadius: '8px',
+                fontWeight: '700', fontSize: '14px', textDecoration: 'none',
+                display: 'inline-block',
                 border: `2px solid ${slide.text_color || '#ffffff'}`,
                 transition: 'background 0.2s',
               }}
@@ -159,11 +163,12 @@ export default function HeroCarousel() {
         <>
           {[{ dir: -1, side: 'left', icon: '‹' }, { dir: 1, side: 'right', icon: '›' }].map(({ dir, side, icon }) => (
             <button key={side} onClick={() => dir === -1 ? prev() : next()}
+              className={`hero-carousel-arrow hero-carousel-arrow-${side}`}
               style={{
                 position: 'absolute', top: '50%', [side]: '20px', transform: 'translateY(-50%)',
-                width: '48px', height: '48px', borderRadius: '50%', border: 'none', cursor: 'pointer',
+                width: '44px', height: '44px', borderRadius: '50%', border: 'none', cursor: 'pointer',
                 background: 'rgba(0,0,0,0.4)', backdropFilter: 'blur(8px)',
-                color: 'white', fontSize: '28px', fontWeight: '300',
+                color: 'white', fontSize: '24px', fontWeight: '300',
                 display: 'flex', alignItems: 'center', justifyContent: 'center',
                 transition: 'background 0.2s, transform 0.2s',
                 zIndex: 10, lineHeight: 1,
@@ -178,11 +183,11 @@ export default function HeroCarousel() {
 
       {/* Dots */}
       {slides.length > 1 && (
-        <div style={{ position: 'absolute', bottom: '24px', left: 0, right: 0, display: 'flex', justifyContent: 'center', gap: '8px', zIndex: 10 }}>
+        <div style={{ position: 'absolute', bottom: '16px', left: 0, right: 0, display: 'flex', justifyContent: 'center', gap: '8px', zIndex: 10 }}>
           {slides.map((_, i) => (
             <button key={i} onClick={() => setCurrent(i)}
               style={{
-                width: i === current ? '28px' : '8px', height: '8px',
+                width: i === current ? '24px' : '7px', height: '7px',
                 borderRadius: '999px', border: 'none', cursor: 'pointer',
                 background: i === current ? 'white' : 'rgba(255,255,255,0.4)',
                 padding: 0, transition: 'all 0.3s ease',
@@ -206,6 +211,15 @@ export default function HeroCarousel() {
         @keyframes slideDown { from { opacity: 0; transform: translateY(-20px); } to { opacity: 1; transform: translateY(0); } }
         @keyframes progress { from { width: 0%; } to { width: 100%; } }
         @keyframes spin { to { transform: rotate(360deg); } }
+        @media (max-width: 768px) {
+          .hero-carousel-arrow {
+            width: 32px !important;
+            height: 32px !important;
+            font-size: 18px !important;
+          }
+          .hero-carousel-arrow-left { left: 8px !important; }
+          .hero-carousel-arrow-right { right: 8px !important; }
+        }
       `}</style>
     </div>
   );

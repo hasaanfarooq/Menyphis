@@ -5,19 +5,33 @@ export async function GET(request) {
   try {
     const { searchParams } = new URL(request.url);
     const category = searchParams.get('category');
+    const store = searchParams.get('store');
     const featured = searchParams.get('featured');
     const trending = searchParams.get('trending');
     const sort = searchParams.get('sort') || 'newest';
     const limit = parseInt(searchParams.get('limit') || '50');
 
     let query = `
-      SELECT p.*, c.name as category_name, c.slug as category_slug
+      SELECT 
+        p.*, 
+        c.name as category_name, 
+        c.slug as category_slug,
+        s.name as store_name,
+        s.slug as store_slug,
+        s.logo_url as store_logo
       FROM products p
       LEFT JOIN categories c ON p.category_id = c.id
-      WHERE 1=1
+      LEFT JOIN stores s ON p.store_id = s.id
+      WHERE (s.is_active = true OR s.id IS NULL)
     `;
     const params = [];
     let paramIndex = 1;
+
+    if (store) {
+      query += ` AND (s.slug = $${paramIndex} OR p.store_id::text = $${paramIndex})`;
+      params.push(store);
+      paramIndex++;
+    }
 
     if (category) {
       query += ` AND c.slug = $${paramIndex}`;
@@ -47,7 +61,11 @@ export async function GET(request) {
         query += ' ORDER BY p.rating DESC';
         break;
       default:
-        query += ' ORDER BY p.created_at DESC';
+        if (featured === 'true') {
+          query += ' ORDER BY COALESCE(p.featured_order, 0) ASC, p.created_at DESC';
+        } else {
+          query += ' ORDER BY p.created_at DESC';
+        }
     }
 
     query += ` LIMIT $${paramIndex}`;

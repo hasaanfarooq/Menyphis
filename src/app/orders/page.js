@@ -2,6 +2,7 @@
 import { useState, useEffect } from 'react';
 import { useCurrency } from '@/context/CurrencyContext';
 import Link from 'next/link';
+import { PackageIcon } from '@/components/Icons';
 
 export default function UserOrdersPage() {
   const [orders, setOrders] = useState([]);
@@ -43,7 +44,9 @@ export default function UserOrdersPage() {
         <div style={{ textAlign: 'center', padding: '40px' }}>Loading your orders...</div>
       ) : orders.length === 0 ? (
         <div style={{ background: 'var(--card-bg)', padding: '40px', borderRadius: '12px', textAlign: 'center', border: '1px solid var(--border-color)' }}>
-          <div style={{ fontSize: '48px', marginBottom: '16px' }}>📦</div>
+          <div style={{ display: 'flex', justifyContent: 'center', marginBottom: '16px' }}>
+            <PackageIcon size={48} color="var(--text-muted)" />
+          </div>
           <h2 style={{ fontSize: '24px', marginBottom: '12px' }}>No orders yet</h2>
           <p style={{ color: 'var(--text-muted)', marginBottom: '24px' }}>You haven't placed any orders with us yet.</p>
           <Link href="/shop" style={{ padding: '12px 24px', background: 'var(--color-primary)', color: 'white', borderRadius: '8px', textDecoration: 'none', fontWeight: 600 }}>Start Shopping</Link>

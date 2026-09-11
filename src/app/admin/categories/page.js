@@ -3,7 +3,9 @@ import { useState, useEffect } from 'react';
 
 export default function AdminCategoriesPage() {
   const [categories, setCategories] = useState([]);
+  const [stores, setStores] = useState([]);
   const [loading, setLoading] = useState(true);
+  const [adminInfo, setAdminInfo] = useState(null);
   const [searchTerm, setSearchTerm] = useState('');
   
   const [showModal, setShowModal] = useState(false);
@@ -11,15 +13,25 @@ export default function AdminCategoriesPage() {
   const [uploading, setUploading] = useState(false);
   const [submitting, setSubmitting] = useState(false);
   const [formData, setFormData] = useState({
-    name: '', slug: '', description: '', image_url: ''
+    name: '', slug: '', description: '', image_url: '', store_id: ''
   });
 
   const fetchCategories = async () => {
     setLoading(true);
     try {
-      const res = await fetch('/api/admin/categories');
+      const [meRes, res, sRes] = await Promise.all([
+        fetch('/api/admin/me'),
+        fetch('/api/admin/categories'),
+        fetch('/api/admin/stores'),
+      ]);
+      if (meRes.ok) {
+        setAdminInfo(await meRes.json());
+      }
       if (res.ok) {
         setCategories(await res.json());
+      }
+      if (sRes.ok) {
+        setStores(await sRes.json());
       }
     } catch (error) {
       console.error('Failed to fetch categories', error);
@@ -31,6 +43,9 @@ export default function AdminCategoriesPage() {
     fetchCategories();
   }, []);
 
+  const isStoreAdmin = !!adminInfo?.isStoreAdmin;
+  const isSuperAdmin = !isStoreAdmin;
+
   const handleOpenModal = (category = null) => {
     if (category) {
       setEditingId(category.id);
@@ -38,11 +53,18 @@ export default function AdminCategoriesPage() {
         name: category.name,
         slug: category.slug,
         description: category.description || '',
-        image_url: category.image_url || ''
+        image_url: category.image_url || '',
+        store_id: category.store_id ? category.store_id.toString() : '',
       });
     } else {
       setEditingId(null);
-      setFormData({ name: '', slug: '', description: '', image_url: '' });
+      setFormData({
+        name: '',
+        slug: '',
+        description: '',
+        image_url: '',
+        store_id: isStoreAdmin && adminInfo?.storeId ? adminInfo.storeId.toString() : '',
+      });
     }
     setShowModal(true);
   };
@@ -63,50 +85,53 @@ export default function AdminCategoriesPage() {
     try {
       const res = await fetch('/api/admin/upload', {
         method: 'POST',
-        body: data,
+        body: data
       });
-      const result = await res.json();
+
       if (res.ok) {
-        setFormData({ ...formData, image_url: result.url });
+        const uploadResult = await res.json();
+        setFormData(prev => ({ ...prev, image_url: uploadResult.url }));
       } else {
-        alert(result.error || 'Upload failed');
+        alert('Failed to upload image');
       }
     } catch (error) {
-      console.error('Upload error:', error);
-      alert('Upload failed');
-    } finally {
-      setUploading(false);
+      console.error('Upload error', error);
+      alert('Failed to upload image');
     }
+    setUploading(false);
   };
 
   const handleSubmit = async (e) => {
     e.preventDefault();
-    if (submitting) return;
-
     setSubmitting(true);
-    const method = editingId ? 'PUT' : 'POST';
-    const url = editingId ? `/api/admin/categories/${editingId}` : '/api/admin/categories';
-    
+
+    const payload = {
+      ...formData,
+      store_id: isStoreAdmin ? adminInfo.storeId : (formData.store_id ? parseInt(formData.store_id) : null),
+    };
+
     try {
+      const url = editingId ? `/api/admin/categories/${editingId}` : '/api/admin/categories';
+      const method = editingId ? 'PUT' : 'POST';
+
       const res = await fetch(url, {
         method,
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(formData)
+        body: JSON.stringify(payload)
       });
 
       if (res.ok) {
         handleCloseModal();
         fetchCategories();
       } else {
-        const data = await res.json();
-        alert(data.error || 'Error saving category');
+        const errorData = await res.json();
+        alert(errorData.error || 'Failed to save category');
       }
     } catch (error) {
-      console.error('Submit error:', error);
+      console.error('Save error', error);
       alert('Failed to save category');
-    } finally {
-      setSubmitting(false);
     }
+    setSubmitting(false);
   };
 
   const handleDelete = async (id) => {
@@ -116,8 +141,8 @@ export default function AdminCategoriesPage() {
         if (res.ok) {
           fetchCategories();
         } else {
-          const data = await res.json();
-          alert(data.error || 'Failed to delete category');
+          const err = await res.json();
+          alert(err.error || 'Failed to delete category');
         }
       } catch (error) {
         console.error('Delete error:', error);
@@ -127,13 +152,24 @@ export default function AdminCategoriesPage() {
   };
 
   const filteredCategories = categories.filter(c => 
-    c.name.toLowerCase().includes(searchTerm.toLowerCase())
+    c.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
+    c.slug.toLowerCase().includes(searchTerm.toLowerCase()) ||
+    (c.store_name || '').toLowerCase().includes(searchTerm.toLowerCase())
   );
 
   return (
     <div>
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '24px', flexWrap: 'wrap', gap: '16px' }}>
-        <h1 className="admin-page-title" style={{ marginBottom: 0 }}>Categories</h1>
+        <div>
+          <h1 className="admin-page-title" style={{ marginBottom: '4px' }}>
+            {isStoreAdmin ? 'Store Categories' : 'Product Categories'}
+          </h1>
+          <p style={{ color: '#64748b', fontSize: '14px', margin: 0 }}>
+            {isStoreAdmin
+              ? `Manage custom catalog categories for ${adminInfo?.storeName || 'your store'}, alongside shared marketplace categories.`
+              : 'Global platform product taxonomy and store-specific collections.'}
+          </p>
+        </div>
         
         <div style={{ display: 'flex', gap: '12px', flex: '1', justifyContent: 'flex-end', minWidth: '300px' }}>
           <input 
@@ -141,7 +177,7 @@ export default function AdminCategoriesPage() {
             placeholder="Search categories..." 
             value={searchTerm}
             onChange={(e) => setSearchTerm(e.target.value)}
-            className="form-input"
+            className="form-input" 
             style={{ margin: 0, maxWidth: '250px' }}
           />
           <button 
@@ -152,13 +188,13 @@ export default function AdminCategoriesPage() {
               color: 'white', 
               borderRadius: '6px', 
               border: 'none', 
-              cursor: 'pointer',
-              fontWeight: '600',
-              fontSize: '14px',
-              whiteSpace: 'nowrap'
+              cursor: 'pointer', 
+              fontWeight: '600', 
+              fontSize: '14px', 
+              whiteSpace: 'nowrap' 
             }}
           >
-            Add New Category
+            + Add Category
           </button>
         </div>
       </div>
@@ -173,6 +209,7 @@ export default function AdminCategoriesPage() {
                 <tr>
                   <th>Image</th>
                   <th>Name & Slug</th>
+                  <th>Scope / Type</th>
                   <th>Description</th>
                   <th>Products</th>
                   <th>Actions</th>
@@ -195,6 +232,17 @@ export default function AdminCategoriesPage() {
                       <div style={{ fontSize: 12, color: '#64748b' }}>/{c.slug}</div>
                     </td>
                     <td>
+                      {c.store_id ? (
+                        <span style={{ fontSize: '12px', fontWeight: '600', color: '#1e40af', background: '#eff6ff', padding: '3px 8px', borderRadius: '4px' }}>
+                          Store: {c.store_name || (isStoreAdmin ? adminInfo?.storeName : `#${c.store_id}`)}
+                        </span>
+                      ) : (
+                        <span style={{ fontSize: '12px', fontWeight: '600', color: '#475569', background: '#f1f5f9', padding: '3px 8px', borderRadius: '4px' }}>
+                          Platform Global
+                        </span>
+                      )}
+                    </td>
+                    <td>
                       <div style={{ fontSize: 13, color: '#475569', maxWidth: '300px', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
                         {c.description || <span style={{ fontStyle: 'italic', color: '#94a3b8' }}>No description</span>}
                       </div>
@@ -205,13 +253,19 @@ export default function AdminCategoriesPage() {
                       </span>
                     </td>
                     <td>
-                      <button className="admin-btn-edit" onClick={() => handleOpenModal(c)}>Edit</button>
-                      <button className="admin-btn-delete" onClick={() => handleDelete(c.id)}>Delete</button>
+                      {c.is_owner ? (
+                        <div style={{ display: 'inline-flex', gap: '6px' }}>
+                          <button className="admin-btn-edit" onClick={() => handleOpenModal(c)}>Edit</button>
+                          <button className="admin-btn-delete" onClick={() => handleDelete(c.id)}>Delete</button>
+                        </div>
+                      ) : (
+                        <span style={{ fontSize: '12px', color: '#94a3b8', fontStyle: 'italic' }}>Platform Shared</span>
+                      )}
                     </td>
                   </tr>
                 ))}
                 {filteredCategories.length === 0 && (
-                  <tr><td colSpan="5" style={{ textAlign: 'center', padding: '24px', color: '#64748b' }}>No categories found</td></tr>
+                  <tr><td colSpan="6" style={{ textAlign: 'center', padding: '24px', color: '#64748b' }}>No categories found</td></tr>
                 )}
               </tbody>
             </table>
@@ -221,17 +275,38 @@ export default function AdminCategoriesPage() {
 
       {showModal && (
         <div className="admin-modal-overlay">
-          <div className="admin-modal">
+          <div className="admin-modal" style={{ maxWidth: '540px' }}>
             <h2 style={{ marginBottom: '16px' }}>{editingId ? 'Edit Category' : 'Add Category'}</h2>
             <form onSubmit={handleSubmit} className="admin-form">
+              {/* Store Scope */}
+              {isSuperAdmin ? (
+                <div className="form-group">
+                  <label>Category Scope</label>
+                  <select
+                    value={formData.store_id || ''}
+                    onChange={e => setFormData({ ...formData, store_id: e.target.value })}
+                    className="form-input"
+                  >
+                    <option value="">Platform Global (All Stores)</option>
+                    {stores.map(s => (
+                      <option key={s.id} value={s.id.toString()}>{s.name} (Store #{s.id})</option>
+                    ))}
+                  </select>
+                </div>
+              ) : (
+                <div style={{ background: '#eff6ff', borderRadius: '6px', padding: '10px 14px', marginBottom: '16px', border: '1px solid #bfdbfe', fontSize: '12px', color: '#1e40af', fontWeight: 600 }}>
+                  This category will be custom to <strong>{adminInfo?.storeName}</strong> catalog.
+                </div>
+              )}
+
               <div className="form-group">
-                <label>Category Name</label>
+                <label>Category Name *</label>
                 <input type="text" value={formData.name} onChange={e => setFormData({...formData, name: e.target.value})} required className="form-input" placeholder="e.g. Summer Collection" />
               </div>
               <div className="form-group">
-                <label>URL Slug</label>
-                <input type="text" value={formData.slug} onChange={e => setFormData({...formData, slug: e.target.value})} required className="form-input" placeholder="e.g. summer-collection" />
-                <div style={{ fontSize: '11px', color: '#64748b', marginTop: '4px' }}>Only lowercase letters, numbers, and hyphens. Must be unique.</div>
+                <label>URL Slug *</label>
+                <input type="text" value={formData.slug} onChange={e => setFormData({...formData, slug: e.target.value.toLowerCase()})} required className="form-input" placeholder="e.g. summer-collection" />
+                <div style={{ fontSize: '11px', color: '#64748b', marginTop: '4px' }}>Only lowercase letters, numbers, and hyphens.</div>
               </div>
               
               <div className="form-group">
