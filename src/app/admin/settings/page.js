@@ -186,6 +186,14 @@ export default function AdminSettingsPage() {
         }
 
         setToast({ message: `${data.saved} settings saved successfully`, type: 'success' });
+
+        // Instantly notify SiteSettingsContext and all open browser tabs
+        if (typeof window !== 'undefined') {
+          window.dispatchEvent(new CustomEvent('site-settings-updated', { detail: payload }));
+          try {
+            localStorage.setItem('site_settings_timestamp', String(Date.now()));
+          } catch {}
+        }
       } else {
         const err = await res.json();
         setToast({ message: err.error || 'Save failed', type: 'error' });

@@ -12,8 +12,8 @@ export default function AnnouncementBar() {
     if (sessionStorage.getItem(key)) { setDismissed(true); return; }
 
     fetch('/api/banners?placement=announcement_bar')
-      .then(r => r.json())
-      .then(data => { if (data.length > 0) setBanner(data[0]); })
+      .then(r => (r.ok ? r.json() : []))
+      .then(data => { if (Array.isArray(data) && data.length > 0) setBanner(data[0]); })
       .catch(() => {});
   }, []);
 

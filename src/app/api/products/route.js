@@ -8,6 +8,7 @@ export async function GET(request) {
     const store = searchParams.get('store');
     const featured = searchParams.get('featured');
     const trending = searchParams.get('trending');
+    const search = searchParams.get('search') || searchParams.get('q');
     const sort = searchParams.get('sort') || 'newest';
     const limit = parseInt(searchParams.get('limit') || '50');
 
@@ -33,9 +34,15 @@ export async function GET(request) {
       paramIndex++;
     }
 
-    if (category) {
+    if (category && category !== 'all') {
       query += ` AND c.slug = $${paramIndex}`;
       params.push(category);
+      paramIndex++;
+    }
+
+    if (search && search.trim()) {
+      query += ` AND (p.name ILIKE $${paramIndex} OR p.description ILIKE $${paramIndex})`;
+      params.push(`%${search.trim()}%`);
       paramIndex++;
     }
 

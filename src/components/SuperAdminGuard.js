@@ -1,12 +1,66 @@
 'use client';
 
+import { useState, useEffect } from 'react';
 import Link from 'next/link';
 import { ShieldCheckIcon } from '@/components/Icons';
 
 export default function SuperAdminGuard({
+  children,
+  adminInfo: passedAdminInfo,
   feature = 'Platform Administration',
   description = 'This configuration module is restricted to platform super administrators. As a store administrator, you can manage your products, orders, reviews, and store settings.',
 }) {
+  const [adminInfo, setAdminInfo] = useState(passedAdminInfo || null);
+  const [loading, setLoading] = useState(!passedAdminInfo && Boolean(children));
+
+  useEffect(() => {
+    if (passedAdminInfo) {
+      setAdminInfo(passedAdminInfo);
+      setLoading(false);
+      return;
+    }
+
+    if (!children) {
+      setLoading(false);
+      return;
+    }
+
+    let isMounted = true;
+    fetch('/api/admin/me')
+      .then((res) => (res.ok ? res.json() : null))
+      .then((data) => {
+        if (isMounted) {
+          setAdminInfo(data);
+          setLoading(false);
+        }
+      })
+      .catch(() => {
+        if (isMounted) setLoading(false);
+      });
+
+    return () => {
+      isMounted = false;
+    };
+  }, [children, passedAdminInfo]);
+
+  // If used as a wrapper: <SuperAdminGuard>{children}</SuperAdminGuard>
+  if (children) {
+    if (loading) {
+      return (
+        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', minHeight: '50vh', gap: '12px', color: '#64748b' }}>
+          <div style={{ width: '24px', height: '24px', border: '3px solid #e2e8f0', borderTopColor: '#1e293b', borderRadius: '50%', animation: 'spin 0.7s linear infinite' }} />
+          <span>Verifying administrator privileges...</span>
+        </div>
+      );
+    }
+
+    // If user is verified as Super Admin, render the protected children
+    if (adminInfo && adminInfo.isSuperAdmin) {
+      return children;
+    }
+  }
+
+  // Otherwise, render the restricted access card
   return (
     <div
       className="admin-card"

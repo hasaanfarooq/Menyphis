@@ -9,7 +9,7 @@ export function FlashSaleProvider({ children }) {
 
   useEffect(() => {
     fetch('/api/flash-sale')
-      .then(r => r.json())
+      .then(r => (r.ok ? r.json() : null))
       .then(data => {
         setSale(data && data.id ? data : null);
       })

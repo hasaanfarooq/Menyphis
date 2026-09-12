@@ -2,10 +2,29 @@ import { NextResponse } from 'next/server';
 import { sql } from '@/lib/db';
 import { getSession } from '@/lib/auth';
 
-// GET reviews for a product (productId passed as `slug` param for route consistency)
+async function resolveProductId(slugOrId) {
+  const num = parseInt(slugOrId, 10);
+  if (!isNaN(num) && String(num) === String(slugOrId)) {
+    return num;
+  }
+  const rows = await sql.query('SELECT id FROM products WHERE slug = $1 LIMIT 1', [slugOrId]);
+  return rows[0]?.id || null;
+}
+
+// GET reviews for a product (supports either numeric ID or slug)
 export async function GET(request, { params }) {
   try {
-    const { slug: productId } = await params;
+    const { slug } = await params;
+    const productId = await resolveProductId(slug);
+    if (!productId) {
+      return NextResponse.json({
+        reviews: [],
+        stats: { total: 0, average: 0, five: 0, four: 0, three: 0, two: 0, one: 0 },
+        userHasPurchased: false,
+        userHasReviewed: false
+      });
+    }
+
     const session = await getSession();
     const userId = session?.user?.id || null;
 
@@ -74,7 +93,12 @@ export async function POST(request, { params }) {
       return NextResponse.json({ error: 'You must be logged in to leave a review' }, { status: 401 });
     }
 
-    const { slug: productId } = await params;
+    const { slug } = await params;
+    const productId = await resolveProductId(slug);
+    if (!productId) {
+      return NextResponse.json({ error: 'Product not found' }, { status: 404 });
+    }
+
     const body = await request.json();
     const { rating, title, comment } = body;
 

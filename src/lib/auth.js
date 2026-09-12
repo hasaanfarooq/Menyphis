@@ -93,7 +93,7 @@ export async function getAdminContext() {
       return null;
     }
 
-    const isSuperAdmin = u.role === 'super_admin' || (u.is_admin && !u.store_id);
+    const isSuperAdmin = u.role === 'super_admin' || (u.is_admin && u.role !== 'store_admin');
 
     return {
       userId: u.id,

@@ -16,6 +16,9 @@ export default function CheckoutPage() {
   const router = useRouter();
 
   const [shippingAddress, setShippingAddress] = useState('');
+  const [customerEmail, setCustomerEmail] = useState('');
+  const [customerName, setCustomerName] = useState('');
+  const [customerPhone, setCustomerPhone] = useState('');
   const [loading, setLoading] = useState(false);
   const [isSuccess, setIsSuccess] = useState(false);
 
@@ -40,6 +43,13 @@ export default function CheckoutPage() {
       }
     }
   }, [settingsLoaded, authLoading, get, user, router]);
+
+  useEffect(() => {
+    if (user) {
+      if (user.email && !customerEmail) setCustomerEmail(user.email);
+      if (user.name && !customerName) setCustomerName(user.name);
+    }
+  }, [user]);
 
   const handleApplyCoupon = async () => {
     if (!couponInput.trim()) return;
@@ -103,9 +113,13 @@ export default function CheckoutPage() {
         body: JSON.stringify({
           total: finalTotal,
           shipping_address: shippingAddress,
+          customer_email: customerEmail,
+          customer_name: customerName,
+          customer_phone: customerPhone,
           coupon_code: couponCode || null,
           items: items.map(i => ({
             id: i.id,
+            name: i.name,
             quantity: i.quantity,
             price: i.price,
             size: i.size,
@@ -147,20 +161,65 @@ export default function CheckoutPage() {
         <div>
           <form id="checkout-form" onSubmit={handleSubmit} style={{ display: 'flex', flexDirection: 'column', gap: '30px' }}>
             
-            {/* Shipping Info */}
+            {/* Contact Information */}
             <div style={{ background: 'var(--card-bg)', padding: '30px', borderRadius: '12px', border: '1px solid var(--border-color)' }}>
               <h2 style={{ fontSize: '20px', marginBottom: '20px', display: 'flex', alignItems: 'center', gap: '10px' }}>
                 <span style={{ background: 'var(--color-primary)', color: 'white', width: '28px', height: '28px', borderRadius: '50%', display: 'inline-flex', alignItems: 'center', justifyContent: 'center', fontSize: '14px' }}>1</span>
+                Contact Information
+              </h2>
+              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '16px', marginBottom: '16px' }}>
+                <div>
+                  <label style={{ display: 'block', marginBottom: '6px', fontSize: '14px', fontWeight: 500 }}>Your Full Name *</label>
+                  <input
+                    type="text"
+                    required
+                    value={customerName}
+                    onChange={(e) => setCustomerName(e.target.value)}
+                    placeholder="e.g. Alex Mercer"
+                    style={{ width: '100%', padding: '12px', borderRadius: '8px', border: '1px solid var(--border-color)', background: 'var(--bg-color)', color: 'var(--text-color)', boxSizing: 'border-box' }}
+                  />
+                </div>
+                <div>
+                  <label style={{ display: 'block', marginBottom: '6px', fontSize: '14px', fontWeight: 500 }}>Email Address *</label>
+                  <input
+                    type="email"
+                    required
+                    value={customerEmail}
+                    onChange={(e) => setCustomerEmail(e.target.value)}
+                    placeholder="alex@example.com"
+                    style={{ width: '100%', padding: '12px', borderRadius: '8px', border: '1px solid var(--border-color)', background: 'var(--bg-color)', color: 'var(--text-color)', boxSizing: 'border-box' }}
+                  />
+                </div>
+              </div>
+              <div>
+                <label style={{ display: 'block', marginBottom: '6px', fontSize: '14px', fontWeight: 500 }}>Phone Number (Optional)</label>
+                <input
+                  type="tel"
+                  value={customerPhone}
+                  onChange={(e) => setCustomerPhone(e.target.value)}
+                  placeholder="+92 300 1234567"
+                  style={{ width: '100%', padding: '12px', borderRadius: '8px', border: '1px solid var(--border-color)', background: 'var(--bg-color)', color: 'var(--text-color)', boxSizing: 'border-box' }}
+                />
+                <span style={{ display: 'block', fontSize: '12px', color: 'var(--text-muted)', marginTop: '6px' }}>
+                  We will send your order confirmation receipt and live tracking updates to this email.
+                </span>
+              </div>
+            </div>
+
+            {/* Shipping Info */}
+            <div style={{ background: 'var(--card-bg)', padding: '30px', borderRadius: '12px', border: '1px solid var(--border-color)' }}>
+              <h2 style={{ fontSize: '20px', marginBottom: '20px', display: 'flex', alignItems: 'center', gap: '10px' }}>
+                <span style={{ background: 'var(--color-primary)', color: 'white', width: '28px', height: '28px', borderRadius: '50%', display: 'inline-flex', alignItems: 'center', justifyContent: 'center', fontSize: '14px' }}>2</span>
                 Shipping Address
               </h2>
               <div>
-                <label style={{ display: 'block', marginBottom: '6px', fontSize: '14px', fontWeight: 500 }}>Full Address</label>
+                <label style={{ display: 'block', marginBottom: '6px', fontSize: '14px', fontWeight: 500 }}>Full Address *</label>
                 <textarea 
                   required 
                   value={shippingAddress}
                   onChange={(e) => setShippingAddress(e.target.value)}
-                  placeholder="123 Street Name, City, Country, ZIP"
-                  style={{ width: '100%', padding: '12px', borderRadius: '8px', border: '1px solid var(--border-color)', background: 'var(--bg-color)', color: 'var(--text-color)', minHeight: '100px', resize: 'vertical', boxSizing: 'border-box' }}
+                  placeholder="123 Street Name, Apartment/Suite, City, Province/State, Postal Code"
+                  style={{ width: '100%', padding: '12px', borderRadius: '8px', border: '1px solid var(--border-color)', background: 'var(--bg-color)', color: 'var(--text-color)', minHeight: '90px', resize: 'vertical', boxSizing: 'border-box' }}
                 />
               </div>
             </div>
@@ -168,7 +227,7 @@ export default function CheckoutPage() {
             {/* Payment Info (Mock) */}
             <div style={{ background: 'var(--card-bg)', padding: '30px', borderRadius: '12px', border: '1px solid var(--border-color)' }}>
               <h2 style={{ fontSize: '20px', marginBottom: '20px', display: 'flex', alignItems: 'center', gap: '10px' }}>
-                <span style={{ background: 'var(--color-primary)', color: 'white', width: '28px', height: '28px', borderRadius: '50%', display: 'inline-flex', alignItems: 'center', justifyContent: 'center', fontSize: '14px' }}>2</span>
+                <span style={{ background: 'var(--color-primary)', color: 'white', width: '28px', height: '28px', borderRadius: '50%', display: 'inline-flex', alignItems: 'center', justifyContent: 'center', fontSize: '14px' }}>3</span>
                 Payment Information
               </h2>
               <p style={{ fontSize: '14px', color: 'var(--text-muted)', marginBottom: '20px' }}>This is a simulated checkout. No real payment is required.</p>

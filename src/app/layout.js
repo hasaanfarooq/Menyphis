@@ -11,6 +11,7 @@ import Navbar from '@/components/Navbar';
 import CartDrawer from '@/components/CartDrawer';
 import Footer from '@/components/Footer';
 import MaintenanceOverlay from '@/components/MaintenanceOverlay';
+import FloatingNavWidgets from '@/components/FloatingNavWidgets';
 
 export async function generateMetadata() {
   try {
@@ -31,11 +32,32 @@ export async function generateMetadata() {
 }
 
 export default async function RootLayout({ children }) {
+  let initialSettings = {};
   let gaId = '';
   try {
-    const res = await sql.query("SELECT value FROM site_settings WHERE key = 'google_analytics_id'");
+    const res = await sql.query(
+      "SELECT key, value FROM site_settings WHERE key = ANY($1::text[]) OR key = 'google_analytics_id'",
+      [[
+        'site_name', 'site_tagline', 'site_description',
+        'contact_email', 'contact_phone', 'contact_address',
+        'social_instagram', 'social_twitter', 'social_tiktok', 'social_youtube', 'social_facebook',
+        'currency_default', 'free_shipping_threshold',
+        'primary_color', 'font_family', 'default_theme', 'custom_css',
+        'seo_title', 'seo_description', 'seo_og_image',
+        'maintenance_mode', 'maintenance_message', 'registration_open',
+        'footer_copyright', 'footer_tagline',
+        'returns_policy_url', 'privacy_policy_url', 'terms_url',
+        'default_shipping_cost',
+      ]]
+    );
     const rows = Array.isArray(res) ? res : (res.rows || res);
-    gaId = rows[0]?.value || '';
+    for (const row of rows) {
+      if (row.key === 'google_analytics_id') {
+        gaId = row.value || '';
+      } else {
+        initialSettings[row.key] = row.value;
+      }
+    }
   } catch {}
 
   return (
@@ -55,7 +77,7 @@ export default async function RootLayout({ children }) {
           </>
         )}
         <AuthProvider>
-          <SiteSettingsProvider>
+          <SiteSettingsProvider initialSettings={initialSettings}>
             <CurrencyProvider>
               <FlashSaleProvider>
                 <CartProvider>
@@ -64,6 +86,7 @@ export default async function RootLayout({ children }) {
                     <Navbar />
                     <CartDrawer />
                     <main>{children}</main>
+                    <FloatingNavWidgets />
                     <Footer />
                   </WishlistProvider>
                 </CartProvider>

@@ -96,7 +96,6 @@ export default function Footer() {
 
         <div className="footer-column">
           <h4>Company</h4>
-          <Link href="/become-a-seller" style={{ color: 'var(--color-primary, #3b82f6)', fontWeight: 600 }}>Become a Seller</Link>
           <a href="#">About Us</a>
           <a href="#">Our Story</a>
           <a href="#">Careers</a>

@@ -11,9 +11,9 @@ export default function PopupBanner() {
     if (sessionStorage.getItem(key)) return;
 
     fetch('/api/banners?placement=popup')
-      .then(r => r.json())
+      .then(r => (r.ok ? r.json() : []))
       .then(data => {
-        if (data.length > 0) {
+        if (Array.isArray(data) && data.length > 0) {
           const b = data[0];
           const delay = parseInt(b.extra_config?.delay_seconds || 3) * 1000;
           setTimeout(() => { setBanner(b); setVisible(true); }, delay);

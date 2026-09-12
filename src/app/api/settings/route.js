@@ -26,7 +26,7 @@ export async function GET() {
       settings[row.key] = row.value;
     }
     return NextResponse.json(settings, {
-      headers: { 'Cache-Control': 'public, max-age=60, stale-while-revalidate=300' }
+      headers: { 'Cache-Control': 'no-store, no-cache, must-revalidate' }
     });
   } catch (e) {
     return NextResponse.json({}, { status: 200 });

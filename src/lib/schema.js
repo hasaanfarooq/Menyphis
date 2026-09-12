@@ -42,6 +42,12 @@ export async function initializeDatabase() {
   await sql`ALTER TABLE products ADD COLUMN IF NOT EXISTS total_sold INT DEFAULT 0`;
   await sql`ALTER TABLE products ADD COLUMN IF NOT EXISTS featured_order INT DEFAULT 0`;
   await sql`ALTER TABLE order_items ADD COLUMN IF NOT EXISTS store_id INT REFERENCES stores(id) ON DELETE SET NULL`;
+  await sql`ALTER TABLE orders ADD COLUMN IF NOT EXISTS customer_email VARCHAR(255)`;
+  await sql`ALTER TABLE orders ADD COLUMN IF NOT EXISTS customer_name VARCHAR(255)`;
+  await sql`ALTER TABLE orders ADD COLUMN IF NOT EXISTS customer_phone VARCHAR(255)`;
+  await sql`ALTER TABLE orders ADD COLUMN IF NOT EXISTS discount_amount DECIMAL(10,2) DEFAULT 0`;
+  await sql`ALTER TABLE orders ADD COLUMN IF NOT EXISTS coupon_id INT`;
+  await sql`ALTER TABLE orders ADD COLUMN IF NOT EXISTS shipping_cost DECIMAL(10,2) DEFAULT 0`;
 
   await sql`ALTER TABLE stores ADD COLUMN IF NOT EXISTS commission_rate DECIMAL(5,2) DEFAULT 10.0`;
   await sql`ALTER TABLE stores ADD COLUMN IF NOT EXISTS pending_payout DECIMAL(10,2) DEFAULT 0.0`;

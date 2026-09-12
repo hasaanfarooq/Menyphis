@@ -2,6 +2,15 @@ import { NextResponse } from 'next/server';
 import { sql } from '@/lib/db';
 import { getSession } from '@/lib/auth';
 
+async function resolveProductId(slugOrId) {
+  const num = parseInt(slugOrId, 10);
+  if (!isNaN(num) && String(num) === String(slugOrId)) {
+    return num;
+  }
+  const rows = await sql.query('SELECT id FROM products WHERE slug = $1 LIMIT 1', [slugOrId]);
+  return rows[0]?.id || null;
+}
+
 // DELETE own review
 export async function DELETE(request, { params }) {
   try {
@@ -10,7 +19,11 @@ export async function DELETE(request, { params }) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
 
-    const { slug: productId, reviewId } = await params;
+    const { slug, reviewId } = await params;
+    const productId = await resolveProductId(slug);
+    if (!productId) {
+      return NextResponse.json({ error: 'Product not found' }, { status: 404 });
+    }
 
     // Only allow deleting own review (unless admin)
     const review = await sql.query(
