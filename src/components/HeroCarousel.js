@@ -1,11 +1,12 @@
 'use client';
 import { useState, useEffect, useRef, useCallback } from 'react';
 import Link from 'next/link';
+import { HERO_SLIDES_DATA } from '@/lib/heroSlidesData';
 
 export default function HeroCarousel() {
-  const [slides, setSlides] = useState([]);
+  const [slides, setSlides] = useState(HERO_SLIDES_DATA);
   const [current, setCurrent] = useState(0);
-  const [loading, setLoading] = useState(true);
+  const [loading, setLoading] = useState(false);
   const [isHovered, setIsHovered] = useState(false);
   const [isDragging, setIsDragging] = useState(false);
   const [dragStart, setDragStart] = useState(0);
@@ -14,8 +15,12 @@ export default function HeroCarousel() {
   useEffect(() => {
     fetch('/api/hero-slides')
       .then(r => r.json())
-      .then(data => { setSlides(Array.isArray(data) ? data : []); setLoading(false); })
-      .catch(() => setLoading(false));
+      .then(data => { 
+        if (Array.isArray(data) && data.length > 0) {
+          setSlides(data);
+        }
+      })
+      .catch(() => {});
   }, []);
 
   const next = useCallback(() => setCurrent(p => (p + 1) % slides.length), [slides.length]);
