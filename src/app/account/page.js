@@ -193,7 +193,28 @@ export default function CustomerAccountPage() {
           </div>
         </div>
 
-        <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: '10px', flexWrap: 'wrap' }}>
+          {!isStoreAdmin && !isSuperAdmin && (
+            <Link
+              href="/become-a-seller"
+              style={{
+                display: 'inline-flex',
+                alignItems: 'center',
+                gap: '6px',
+                padding: '10px 18px',
+                background: '#eef2ff',
+                color: '#4f46e5',
+                border: '1px solid #c7d2fe',
+                borderRadius: '8px',
+                textDecoration: 'none',
+                fontSize: '13px',
+                fontWeight: 700
+              }}
+            >
+              <StoreIcon size={14} color="#4f46e5" />
+              Become a Seller
+            </Link>
+          )}
           {(isStoreAdmin || isSuperAdmin) && (
             <Link
               href="/admin"

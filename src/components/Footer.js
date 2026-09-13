@@ -98,6 +98,9 @@ export default function Footer() {
           <h4>Company</h4>
           <a href="#">About Us</a>
           <a href="#">Our Story</a>
+          <Link href="/become-a-seller" style={{ color: 'var(--color-primary, #4f46e5)', fontWeight: 600 }}>
+            Become a Seller
+          </Link>
           <a href="#">Careers</a>
         </div>
 

@@ -6,6 +6,7 @@ import { useCart } from '@/context/CartContext';
 import { useAuth } from '@/context/AuthContext';
 import { useCurrency } from '@/context/CurrencyContext';
 import { useWishlist } from '@/context/WishlistContext';
+import { StoreIcon } from '@/components/Icons';
 
 export default function Navbar() {
   const [mobileOpen, setMobileOpen] = useState(false);
@@ -81,6 +82,7 @@ export default function Navbar() {
     { name: 'Limited Edition', href: '/shop?category=limited-edition', sale: false },
     { name: 'Streetwear', href: '/shop', sale: false },
     { name: 'Trending', href: '/shop?sort=popular', sale: false },
+    { name: 'Become a Seller', href: '/become-a-seller', isPartner: true },
   ];
 
   const [navCategories, setNavCategories] = useState(DEFAULT_CATEGORIES);
@@ -103,6 +105,7 @@ export default function Navbar() {
               { name: 'New In', href: '/shop?category=new-arrivals', sale: false },
               { name: 'Sale', href: '/shop?category=limited-edition', sale: true },
               ...dynamicList,
+              { name: 'Become a Seller', href: '/become-a-seller', isPartner: true },
             ]);
           }
         }
@@ -174,6 +177,33 @@ export default function Navbar() {
             </form>
 
             <div className="navbar-actions">
+              <Link 
+                href="/become-a-seller" 
+                className="navbar-become-seller-btn hide-mobile"
+                title="Sell on Menyphis"
+                style={{
+                  display: 'inline-flex',
+                  alignItems: 'center',
+                  gap: '6px',
+                  padding: '6px 13px',
+                  borderRadius: '9999px',
+                  background: 'rgba(79, 70, 229, 0.08)',
+                  border: '1px solid rgba(79, 70, 229, 0.25)',
+                  color: '#4f46e5',
+                  fontSize: '11px',
+                  fontWeight: '700',
+                  letterSpacing: '0.03em',
+                  textTransform: 'uppercase',
+                  textDecoration: 'none',
+                  marginRight: '6px',
+                  whiteSpace: 'nowrap',
+                  transition: 'all 0.2s ease',
+                }}
+              >
+                <StoreIcon size={13} color="#4f46e5" />
+                Become a Seller
+              </Link>
+
               <div className="navbar-user-menu" style={{ marginRight: '4px' }}>
                 <button className="navbar-action-btn" title="Currency" style={{ padding: '6px 8px', fontSize: '13px', fontWeight: 700 }}>
                   {currency}
@@ -204,6 +234,12 @@ export default function Navbar() {
                     <Link href="/wishlist" className="dropdown-item" style={{ textDecoration: 'none' }}>
                       My Wishlist
                     </Link>
+                    {!user.store_name && !user.is_admin && (
+                      <Link href="/become-a-seller" className="dropdown-item" style={{ textDecoration: 'none', color: '#4f46e5', fontWeight: 600, display: 'flex', alignItems: 'center', gap: '6px' }}>
+                        <StoreIcon size={14} color="#4f46e5" />
+                        Become a Seller
+                      </Link>
+                    )}
                     {user.store_name ? (
                       <Link href="/admin" className="dropdown-item admin-badge" style={{ textDecoration: 'none', display: 'flex', alignItems: 'center', gap: '6px' }}>
                         <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"></path><polyline points="9 22 9 12 15 12 15 22"></polyline></svg>
@@ -271,13 +307,22 @@ export default function Navbar() {
                     key={i}
                     href={cat.href}
                     className={`navbar-cat-link ${cat.sale ? 'sale' : ''}`}
-                    style={cat.isStore ? { display: 'inline-flex', alignItems: 'center', gap: '5px' } : undefined}
+                    style={
+                      cat.isStore
+                        ? { display: 'inline-flex', alignItems: 'center', gap: '5px' }
+                        : cat.isPartner
+                        ? { display: 'inline-flex', alignItems: 'center', gap: '5px', color: '#4f46e5', fontWeight: 700 }
+                        : undefined
+                    }
                   >
                     {cat.isStore && (
                       <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
                         <path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"></path>
                         <polyline points="9 22 9 12 15 12 15 22"></polyline>
                       </svg>
+                    )}
+                    {cat.isPartner && (
+                      <StoreIcon size={12} color="#4f46e5" />
                     )}
                     {cat.name}
                   </Link>
@@ -322,6 +367,24 @@ export default function Navbar() {
 
         <Link href="/" onClick={() => setMobileOpen(false)}>Home</Link>
         <Link href="/stores" onClick={() => setMobileOpen(false)} style={{ color: '#4f46e5', fontWeight: 600 }}>Brand Stores</Link>
+        <Link 
+          href="/become-a-seller" 
+          onClick={() => setMobileOpen(false)} 
+          style={{ 
+            color: '#4f46e5', 
+            fontWeight: 700, 
+            display: 'flex', 
+            alignItems: 'center', 
+            gap: '8px', 
+            background: 'rgba(79, 70, 229, 0.08)', 
+            padding: '10px 14px', 
+            borderRadius: '10px',
+            margin: '4px 0'
+          }}
+        >
+          <StoreIcon size={16} color="#4f46e5" />
+          Become a Seller
+        </Link>
         <Link href="/shop" onClick={() => setMobileOpen(false)}>Shop All</Link>
         <Link href="/wishlist" onClick={() => setMobileOpen(false)}>Wishlist {wishlistItems?.length ? `(${wishlistItems.length})` : ''}</Link>
         <Link href="/track" onClick={() => setMobileOpen(false)}>Track Order</Link>
