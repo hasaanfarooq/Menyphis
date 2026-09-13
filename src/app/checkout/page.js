@@ -39,7 +39,7 @@ export default function CheckoutPage() {
     if (settingsLoaded && !authLoading) {
       const allowGuest = get('guest_checkout', true);
       if (!allowGuest && !user) {
-        router.push('/login?redirect=/checkout');
+        router.push('/auth/login?redirect=/checkout');
       }
     }
   }, [settingsLoaded, authLoading, get, user, router]);

@@ -111,6 +111,21 @@ export async function initializeDatabase() {
   `;
 
   await sql`
+    CREATE TABLE IF NOT EXISTS seller_applications (
+      id SERIAL PRIMARY KEY,
+      brand_name VARCHAR(255) NOT NULL,
+      contact_name VARCHAR(255) NOT NULL,
+      email VARCHAR(255) NOT NULL,
+      phone VARCHAR(100),
+      website_or_social VARCHAR(255),
+      category VARCHAR(100),
+      description TEXT,
+      status VARCHAR(50) DEFAULT 'pending',
+      created_at TIMESTAMP DEFAULT NOW()
+    )
+  `;
+
+  await sql`
     CREATE TABLE IF NOT EXISTS categories (
       id SERIAL PRIMARY KEY,
       name VARCHAR(100) NOT NULL,

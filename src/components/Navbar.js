@@ -72,7 +72,7 @@ export default function Navbar() {
     }
   };
 
-  const categories = [
+  const DEFAULT_CATEGORIES = [
     { name: 'Stores', href: '/stores', sale: false, isStore: true },
     { name: 'New In', href: '/shop?category=new-arrivals', sale: false },
     { name: 'Sale', href: '/shop?category=limited-edition', sale: true },
@@ -81,12 +81,38 @@ export default function Navbar() {
     { name: 'Limited Edition', href: '/shop?category=limited-edition', sale: false },
     { name: 'Streetwear', href: '/shop', sale: false },
     { name: 'Trending', href: '/shop?sort=popular', sale: false },
-    { name: 'New Arrivals', href: '/shop?category=new-arrivals', sale: false },
-    { name: 'Graphic Tees', href: '/shop?category=shirts', sale: false },
-    { name: 'Oversized', href: '/shop?category=hoodies', sale: false },
-    { name: 'Premium', href: '/shop', sale: false },
-    { name: 'Best Sellers', href: '/shop?sort=popular', sale: false },
   ];
+
+  const [navCategories, setNavCategories] = useState(DEFAULT_CATEGORIES);
+
+  useEffect(() => {
+    let active = true;
+    async function fetchCategories() {
+      try {
+        const res = await fetch('/api/categories');
+        if (res.ok) {
+          const data = await res.json();
+          if (Array.isArray(data) && data.length > 0 && active) {
+            const dynamicList = data.map((c) => ({
+              name: c.name,
+              href: `/shop?category=${encodeURIComponent(c.slug)}`,
+              sale: (c.slug || '').toLowerCase().includes('sale'),
+            }));
+            setNavCategories([
+              { name: 'Stores', href: '/stores', sale: false, isStore: true },
+              { name: 'New In', href: '/shop?category=new-arrivals', sale: false },
+              { name: 'Sale', href: '/shop?category=limited-edition', sale: true },
+              ...dynamicList,
+            ]);
+          }
+        }
+      } catch {
+        // Fallback remains active
+      }
+    }
+    fetchCategories();
+    return () => { active = false; };
+  }, []);
 
   if (isAdminRoute) {
     return null;
@@ -240,7 +266,7 @@ export default function Navbar() {
           {!isAdminRoute && (
             <div className="navbar-categories">
               <div className="navbar-categories-inner">
-                {categories.map((cat, i) => (
+                {navCategories.map((cat, i) => (
                   <Link
                     key={i}
                     href={cat.href}
@@ -299,10 +325,17 @@ export default function Navbar() {
         <Link href="/shop" onClick={() => setMobileOpen(false)}>Shop All</Link>
         <Link href="/wishlist" onClick={() => setMobileOpen(false)}>Wishlist {wishlistItems?.length ? `(${wishlistItems.length})` : ''}</Link>
         <Link href="/track" onClick={() => setMobileOpen(false)}>Track Order</Link>
-        <Link href="/shop?category=shirts" onClick={() => setMobileOpen(false)}>Shirts</Link>
-        <Link href="/shop?category=hoodies" onClick={() => setMobileOpen(false)}>Hoodies</Link>
-        <Link href="/shop?category=limited-edition" onClick={() => setMobileOpen(false)}>Limited Edition</Link>
-        <Link href="/shop?category=new-arrivals" onClick={() => setMobileOpen(false)}>New Arrivals</Link>
+        <div style={{ height: '1px', background: '#eee', margin: '8px 0' }} />
+        {navCategories.filter(c => !c.isStore).slice(0, 8).map((cat, idx) => (
+          <Link 
+            key={idx} 
+            href={cat.href} 
+            onClick={() => setMobileOpen(false)}
+            style={cat.sale ? { color: 'var(--color-sale, #ef4444)', fontWeight: 600 } : undefined}
+          >
+            {cat.name}
+          </Link>
+        ))}
         {user ? (
           <>
             <div style={{ padding: '15px 20px', color: '#666', borderTop: '1px solid #eee' }}>Hi, {user.name}</div>

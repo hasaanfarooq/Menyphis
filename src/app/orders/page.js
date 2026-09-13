@@ -30,6 +30,34 @@ export default function UserOrdersPage() {
     fetchOrders();
   }, []);
 
+  const [cancellingId, setCancellingId] = useState(null);
+  const [cancelToast, setCancelToast] = useState(null);
+
+  const handleCancelOrder = async (orderId) => {
+    if (!window.confirm(`Are you sure you want to cancel order #${orderId}? Reserved items will be restored to store inventory.`)) {
+      return;
+    }
+    setCancellingId(orderId);
+    try {
+      const res = await fetch(`/api/orders/${orderId}/cancel`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+      });
+      const data = await res.json();
+      if (res.ok) {
+        setOrders(prev => prev.map(o => o.id === orderId ? { ...o, status: 'cancelled' } : o));
+        setCancelToast(`Order #${orderId} was cancelled successfully.`);
+        setTimeout(() => setCancelToast(null), 4000);
+      } else {
+        alert(data.error || 'Failed to cancel order');
+      }
+    } catch {
+      alert('Network error while cancelling order');
+    } finally {
+      setCancellingId(null);
+    }
+  };
+
   const getStatusBadge = (status) => {
     switch (status?.toLowerCase()) {
       case 'delivered':
@@ -74,6 +102,13 @@ export default function UserOrdersPage() {
           Explore Shop
         </Link>
       </div>
+
+      {cancelToast && (
+        <div style={{ background: '#ecfdf5', color: '#065f46', border: '1px solid #a7f3d0', padding: '12px 18px', borderRadius: '10px', marginBottom: '20px', fontSize: '14px', fontWeight: 600, display: 'flex', alignItems: 'center', gap: '8px' }}>
+          <CheckCircleIcon size={16} color="#059669" />
+          {cancelToast}
+        </div>
+      )}
 
       {loading ? (
         <div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
@@ -191,6 +226,28 @@ export default function UserOrdersPage() {
                       <TruckIcon size={13} color="currentColor" />
                       Track Package
                     </Link>
+                    {order.status?.toLowerCase() === 'pending' && (
+                      <button
+                        onClick={() => handleCancelOrder(order.id)}
+                        disabled={cancellingId === order.id}
+                        style={{
+                          padding: '6px 14px',
+                          background: '#fff1f2',
+                          border: '1px solid #fecdd3',
+                          borderRadius: '9999px',
+                          fontSize: '12px',
+                          fontWeight: 600,
+                          color: '#e11d48',
+                          cursor: cancellingId === order.id ? 'not-allowed' : 'pointer',
+                          display: 'inline-flex',
+                          alignItems: 'center',
+                          gap: '4px',
+                          transition: 'background 0.2s'
+                        }}
+                      >
+                        {cancellingId === order.id ? 'Cancelling...' : 'Cancel Order'}
+                      </button>
+                    )}
                   </div>
                 </div>
 

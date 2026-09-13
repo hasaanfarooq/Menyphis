@@ -30,9 +30,12 @@ export default function ProductCard({ product }) {
   const wishlisted = isWishlisted(product.id);
   const saleInfo = getSaleInfo ? getSaleInfo(product.id, parseFloat(product.price)) : null;
 
+  const isOutOfStock = product.stock !== undefined && product.stock !== null && parseInt(product.stock) <= 0;
+
   const handleQuickAdd = (e) => {
     e.preventDefault();
     e.stopPropagation();
+    if (isOutOfStock) return;
     const defaultSize = product.sizes?.[1] || product.sizes?.[0] || 'M';
     const defaultColor = product.colors?.[0] || 'Black';
     const cartPrice = saleInfo ? saleInfo.salePrice : parseFloat(product.price);
@@ -63,15 +66,38 @@ export default function ProductCard({ product }) {
       <Link href={`/product/${product.slug}`} className="product-card" ref={cardRef}>
         <div className="product-card-inner">
           <div className="product-card-image">
-            <img src={previewImage || product.image_url} alt={product.name} loading="lazy" />
+            <img 
+              src={previewImage || product.image_url} 
+              alt={product.name} 
+              loading="lazy" 
+              style={isOutOfStock ? { filter: 'grayscale(35%) opacity(0.85)' } : {}}
+            />
             
-            {product.trending && !saleInfo && <span className="product-badge hot">HOT</span>}
-            {saleInfo && (
-              <span className="product-badge sale" style={{ background: 'linear-gradient(135deg, #ef4444, #f97316)', animation: 'pulse 2s infinite', display: 'inline-flex', alignItems: 'center', gap: '3px' }}>
-                <ZapIcon size={12} color="#ffffff" /> -{saleInfo.discount}%
+            {isOutOfStock ? (
+              <span 
+                className="product-badge" 
+                style={{ 
+                  background: '#0f172a', 
+                  color: '#ffffff', 
+                  border: '1px solid rgba(255,255,255,0.2)', 
+                  fontWeight: 800, 
+                  letterSpacing: '0.08em',
+                  fontSize: '10px'
+                }}
+              >
+                SOLD OUT
               </span>
+            ) : (
+              <>
+                {product.trending && !saleInfo && <span className="product-badge hot">HOT</span>}
+                {saleInfo && (
+                  <span className="product-badge sale" style={{ background: 'linear-gradient(135deg, #ef4444, #f97316)', animation: 'pulse 2s infinite', display: 'inline-flex', alignItems: 'center', gap: '3px' }}>
+                    <ZapIcon size={12} color="#ffffff" /> -{saleInfo.discount}%
+                  </span>
+                )}
+                {!product.trending && !saleInfo && displayDiscount > 0 && <span className="product-badge sale">-{displayDiscount}%</span>}
+              </>
             )}
-            {!product.trending && !saleInfo && displayDiscount > 0 && <span className="product-badge sale">-{displayDiscount}%</span>}
 
             <button 
               className="product-card-wishlist" 
@@ -86,9 +112,20 @@ export default function ProductCard({ product }) {
             </button>
 
             <div className="product-card-overlay">
-              <button className="product-quick-add" onClick={handleQuickAdd}>
-                + Add to Cart
-              </button>
+              {isOutOfStock ? (
+                <button 
+                  className="product-quick-add" 
+                  disabled
+                  onClick={(e) => { e.preventDefault(); e.stopPropagation(); }}
+                  style={{ background: '#f1f5f9', color: '#94a3b8', cursor: 'not-allowed', border: '1px solid #e2e8f0' }}
+                >
+                  Sold Out
+                </button>
+              ) : (
+                <button className="product-quick-add" onClick={handleQuickAdd}>
+                  + Add to Cart
+                </button>
+              )}
             </div>
           </div>
 

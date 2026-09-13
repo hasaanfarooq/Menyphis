@@ -67,8 +67,10 @@ export default function ProductDetail({ params }) {
     }
   };
 
+  const isOutOfStock = product?.stock !== undefined && product?.stock !== null && parseInt(product.stock) <= 0;
+
   const handleAddToCart = () => {
-    if (!product || !selectedSize || !selectedColor) return;
+    if (isOutOfStock || !product || !selectedSize || !selectedColor) return;
     const cartPrice = saleInfo ? saleInfo.salePrice : parseFloat(product.price);
     const cartImage = (product.color_images && product.color_images[selectedColor]) || activeImage || product.image_url;
     addItem({
@@ -186,6 +188,17 @@ export default function ProductDetail({ params }) {
                   )}
                 </>
               )}
+              {isOutOfStock ? (
+                <span style={{ display: 'inline-flex', alignItems: 'center', gap: '4px', background: '#fee2e2', color: '#991b1b', border: '1px solid #fecaca', padding: '4px 10px', borderRadius: '6px', fontSize: '11px', fontWeight: '800', letterSpacing: '0.04em', textTransform: 'uppercase' }}>
+                  ● Sold Out
+                </span>
+              ) : (
+                product.stock !== undefined && product.stock !== null && product.stock <= 5 && (
+                  <span style={{ display: 'inline-flex', alignItems: 'center', gap: '4px', background: '#fffbeb', color: '#b45309', border: '1px solid #fef3c7', padding: '4px 10px', borderRadius: '6px', fontSize: '11px', fontWeight: '700' }}>
+                    Low Stock: Only {product.stock} left!
+                  </span>
+                )
+              )}
             </div>
 
             {product.rating > 0 && (
@@ -235,13 +248,31 @@ export default function ProductDetail({ params }) {
             )}
 
             <div className="product-add-section">
-              <button className="product-add-btn" onClick={handleAddToCart} style={{ display: 'inline-flex', alignItems: 'center', justifyContent: 'center' }}>
-                {added ? (
-                  <span style={{ display: 'inline-flex', alignItems: 'center', gap: '6px' }}>
-                    <CheckIcon size={16} /> Added to Cart!
-                  </span>
-                ) : 'Add to Cart'}
-              </button>
+              {isOutOfStock ? (
+                <button 
+                  className="product-add-btn" 
+                  disabled 
+                  style={{ 
+                    background: '#f1f5f9', 
+                    color: '#94a3b8', 
+                    cursor: 'not-allowed', 
+                    border: '1px solid #e2e8f0',
+                    display: 'inline-flex', 
+                    alignItems: 'center', 
+                    justifyContent: 'center' 
+                  }}
+                >
+                  Sold Out
+                </button>
+              ) : (
+                <button className="product-add-btn" onClick={handleAddToCart} style={{ display: 'inline-flex', alignItems: 'center', justifyContent: 'center' }}>
+                  {added ? (
+                    <span style={{ display: 'inline-flex', alignItems: 'center', gap: '6px' }}>
+                      <CheckIcon size={16} /> Added to Cart!
+                    </span>
+                  ) : 'Add to Cart'}
+                </button>
+              )}
               <button 
                 className="product-wishlist-btn" 
                 onClick={() => toggleWishlist(product)}

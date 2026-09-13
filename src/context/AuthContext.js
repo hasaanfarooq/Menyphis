@@ -27,7 +27,7 @@ export function AuthProvider({ children }) {
     checkAuth();
   }, []);
 
-  const login = async (email, password) => {
+  const login = async (email, password, redirectUrl = '/') => {
     const res = await fetch('/api/auth/login', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
@@ -38,11 +38,11 @@ export function AuthProvider({ children }) {
     if (!res.ok) throw new Error(data.error || 'Login failed');
     
     setUser(data);
-    router.push('/');
+    router.push(redirectUrl || '/');
     return data;
   };
 
-  const register = async (name, email, password) => {
+  const register = async (name, email, password, redirectUrl = '/') => {
     const res = await fetch('/api/auth/register', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
@@ -53,7 +53,7 @@ export function AuthProvider({ children }) {
     if (!res.ok) throw new Error(data.error || 'Registration failed');
     
     setUser(data);
-    router.push('/');
+    router.push(redirectUrl || '/');
     return data;
   };
 
