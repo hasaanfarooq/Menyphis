@@ -66,7 +66,7 @@ export default function HeroCarousel() {
     >
       {/* Slides */}
       {slides.map((s, i) => (
-        <div key={s.id} style={{
+        <div key={s.id || s.title || i} style={{
           position: 'absolute', inset: 0,
           transition: 'opacity 0.8s ease, transform 0.8s ease',
           opacity: i === current ? 1 : 0,
